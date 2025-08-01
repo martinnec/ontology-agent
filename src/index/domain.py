@@ -31,6 +31,7 @@ class IndexDoc(BaseModel):
     element_id: str = Field(..., description="Unique identifier for the element")
     title: str = Field(..., description="Title/heading of the element")
     summary: Optional[str] = Field(None, description="AI-generated summary of the element")
+    summary_names: Optional[List[str]] = Field(None, description="Names of important concepts and relationships identified in the content")
     official_identifier: str = Field(..., description="Official legal identifier (e.g., '§ 2', 'čl. 15')")
     text_content: Optional[str] = Field(None, description="Full text content of the element")
     
@@ -75,6 +76,7 @@ class IndexDoc(BaseModel):
             element_id=str(legal_element.id),
             title=legal_element.title,
             summary=legal_element.summary,
+            summary_names=legal_element.summary_names,
             official_identifier=legal_element.officialIdentifier,
             text_content=legal_element.textContent,
             level=level,
@@ -122,11 +124,16 @@ class IndexDoc(BaseModel):
         Returns:
             Dictionary mapping field names to their content
         """
+        # Convert summary_names list to space-separated string
+        summary_names_text = ""
+        if self.summary_names:
+            summary_names_text = " ".join(self.summary_names)
+            
         return {
             'official_identifier': self.official_identifier or "",
             'title': self.title or "",
             'summary': self.summary or "",
-            'text_content': self.text_content or ""
+            'summary_names': summary_names_text
         }
 
 

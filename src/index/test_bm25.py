@@ -44,6 +44,7 @@ def create_test_documents() -> list:
             title="Základní pojmy",
             official_identifier="§ 1",
             summary="Definice základních pojmů používaných v zákoně o ochraně osobních údajů, včetně definice osobních údajů, zpracování a správce.",
+            summary_names=["osobní údaje", "zpracování", "správce", "definice"],
             level=1,
             element_type=ElementType.SECTION,
             act_iri="http://example.org/act/1"
@@ -53,6 +54,7 @@ def create_test_documents() -> list:
             title="Předmět úpravy",
             official_identifier="§ 2",
             summary="Vymezení předmětu úpravy zákona, který se vztahuje na zpracování osobních údajů fyzických osob.",
+            summary_names=["předmět úpravy", "fyzická osoba", "zpracování"],
             level=1,
             element_type=ElementType.SECTION,
             act_iri="http://example.org/act/1"
@@ -62,6 +64,7 @@ def create_test_documents() -> list:
             title="Práva subjektů údajů",
             official_identifier="§ 3",
             summary="Ustanovení o právech fyzických osob, jejichž osobní údaje jsou zpracovávány, včetně práva na informace a opravu.",
+            summary_names=["práva subjektů", "informace", "oprava", "fyzická osoba"],
             level=1,
             element_type=ElementType.SECTION,
             act_iri="http://example.org/act/1"
@@ -71,6 +74,7 @@ def create_test_documents() -> list:
             title="Povinnosti správců",
             official_identifier="§ 4",
             summary="Povinnosti správců osobních údajů při zpracování, včetně zajištění bezpečnosti a oznámení porušení.",
+            summary_names=["povinnosti správců", "bezpečnost", "porušení", "oznámení"],
             level=1,
             element_type=ElementType.SECTION,
             act_iri="http://example.org/act/1"
@@ -118,12 +122,14 @@ def test_weighted_text_creation():
     
     index = BM25SummaryIndex()
     
-    # Create test document
+    # Create test document with all fields
     doc = IndexDoc(
         element_id="test/1",
         title="Test Title",
         official_identifier="§ Test",
         summary="Test summary for BM25 weighting",
+        summary_names=["test concept", "weighting"],
+        text_content="Full text content for testing",
         level=1,
         element_type=ElementType.SECTION
     )
@@ -131,10 +137,27 @@ def test_weighted_text_creation():
     # Create weighted text
     weighted_text = index._create_weighted_text(doc)
     
-    # Verify weighting (summary should appear 3 times, title 2 times, ID 1 time)
+    # Verify weighting according to new scheme:
+    # summary_names: 5x, summary: 3x, title: 2x, text_content: 1x, official_identifier: 1x
+    assert weighted_text.count("test concept weighting") == 5, "Summary names should appear 5 times"
     assert weighted_text.count("Test summary for BM25 weighting") == 3, "Summary should appear 3 times"
     assert weighted_text.count("Test Title") == 2, "Title should appear 2 times"
+    assert weighted_text.count("Full text content for testing") == 1, "Text content should appear 1 time"
     assert weighted_text.count("§ Test") == 1, "Official ID should appear 1 time"
+    
+    # Test document without summary_names
+    doc_no_names = IndexDoc(
+        element_id="test/2",
+        title="Test Title",
+        official_identifier="§ Test",
+        summary="Test summary for BM25 weighting",
+        summary_names=None,
+        level=1,
+        element_type=ElementType.SECTION
+    )
+    
+    weighted_text_no_names = index._create_weighted_text(doc_no_names)
+    assert "test concept weighting" not in weighted_text_no_names, "Should not contain summary names when None"
     
     print("✓ Weighted text creation working correctly")
 
@@ -380,6 +403,72 @@ def test_empty_query_handling():
     print("✓ Empty query handling working correctly")
 
 
+def test_summary_names_functionality():
+    """Test that summary_names are properly indexed and weighted."""
+    print("Testing summary_names functionality...")
+    
+    # Create test documents with and without summary_names
+    doc_with_names = IndexDoc(
+        element_id="test/with_names",
+        title="Document with concept names",
+        official_identifier="§ 1",
+        summary="This document defines legal obligations and compliance requirements.",
+        summary_names=["legal obligation", "compliance requirement", "penalty", "enforcement"],
+        level=1,
+        element_type=ElementType.SECTION,
+        act_iri="http://example.org/act/1"
+    )
+    
+    doc_without_names = IndexDoc(
+        element_id="test/without_names",
+        title="Document without concept names",
+        official_identifier="§ 2",
+        summary="This document also discusses legal obligations and compliance requirements.",
+        summary_names=None,
+        level=1,
+        element_type=ElementType.SECTION,
+        act_iri="http://example.org/act/1"
+    )
+    
+    # Build index
+    index = BM25SummaryIndex()
+    index.build([doc_with_names, doc_without_names])
+    
+    # Test weighted text creation with summary_names
+    weighted_text_with_names = index._create_weighted_text(doc_with_names)
+    weighted_text_without_names = index._create_weighted_text(doc_without_names)
+    
+    # Verify that summary_names appear with weight 5
+    summary_names_text = "legal obligation compliance requirement penalty enforcement"
+    assert weighted_text_with_names.count(summary_names_text) == 5, "Summary names should appear 5 times"
+    
+    # Verify that document without summary_names doesn't contain the weighted concept names
+    assert summary_names_text not in weighted_text_without_names, "Document without summary_names should not contain weighted concept names"
+    
+    # Test search - document with summary_names should rank higher for concept queries
+    query = SearchQuery(query="legal obligation", max_results=10)
+    results = index.search(query)
+    
+    assert len(results) >= 1, "Should find at least one result"
+    
+    # The document with summary_names should rank higher due to higher weight
+    if len(results) == 2:
+        # Both documents should be found, but the one with summary_names should rank higher
+        assert results[0].doc.element_id == "test/with_names", "Document with summary_names should rank higher"
+        assert results[0].score > results[1].score, "Document with summary_names should have higher score"
+    
+    # Test that summary_names appear in matched fields
+    for result in results:
+        if result.doc.element_id == "test/with_names":
+            assert "summary_names" in result.matched_fields, "summary_names should be in matched fields"
+    
+    print(f"Search results for 'legal obligation': {len(results)} documents found")
+    for i, result in enumerate(results):
+        print(f"  {i+1}. {result.doc.element_id} (score: {result.score:.3f}, fields: {result.matched_fields})")
+    
+    print("✓ Summary names functionality working correctly")
+
+
 def run_all_tests():
     """Run all test functions."""
     print("=" * 50)
@@ -395,7 +484,8 @@ def run_all_tests():
         test_search_scoring,
         test_index_persistence,
         test_index_statistics,
-        test_empty_query_handling
+        test_empty_query_handling,
+        test_summary_names_functionality
     ]
     
     passed = 0

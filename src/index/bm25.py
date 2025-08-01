@@ -2,7 +2,7 @@
 BM25-based keyword search index implementation.
 
 This module provides BM25 indexing and search capabilities for legal act elements,
-with weighted fields (summary^3 + title^2 + officialIdentifier^1).
+with weighted fields (summary_names^5 + summary^3 + title^2 + officialIdentifier^1).
 """
 
 import json
@@ -24,9 +24,10 @@ class BM25SummaryIndex(IndexBuilder):
     BM25-based keyword search index for legal document summaries.
     
     Implements weighted search over:
-    - summary^3 (highest weight)
+    - summary_names^5 (highest weight - key concepts and relationships)
+    - summary^3 (high weight - comprehensive text summary)
     - title^2 (medium weight) 
-    - officialIdentifier^1 (lowest weight)
+    - officialIdentifier^1 (baseline weight)
     """
     
     def __init__(self):
@@ -53,7 +54,8 @@ class BM25SummaryIndex(IndexBuilder):
         Create weighted text for BM25 indexing.
         
         Applies weights by repeating text:
-        - summary: 3x (highest priority)
+        - summary_names: 5x (highest priority - key concepts)
+        - summary: 3x (high priority - comprehensive summary)
         - title: 2x (medium priority)
         - officialIdentifier: 1x (baseline)
         
@@ -76,6 +78,11 @@ class BM25SummaryIndex(IndexBuilder):
         # Add summary (weight 3)
         if doc.summary:
             parts.extend([doc.summary] * 3)
+        
+        # Add summary_names (weight 5 - highest priority)
+        if doc.summary_names:
+            summary_names_text = " ".join(doc.summary_names)
+            parts.extend([summary_names_text] * 5)
         
         return " ".join(parts)
     
@@ -108,7 +115,7 @@ class BM25SummaryIndex(IndexBuilder):
             document_count=len(documents),
             index_type="bm25_summary",
             metadata={
-                "weighted_fields": ["summary^3", "title^2", "officialIdentifier^1"],
+                "weighted_fields": ["summary_names^5", "summary^3", "title^2", "officialIdentifier^1"],
                 "tokenizer": "simple_czech",
                 "model_params": {
                     "k1": self.bm25_model.k1,
@@ -208,7 +215,8 @@ class BM25SummaryIndex(IndexBuilder):
         fields_to_check = {
             'official_identifier': doc.official_identifier or "",
             'title': doc.title or "",
-            'summary': doc.summary or ""
+            'summary': doc.summary or "",
+            'summary_names': " ".join(doc.summary_names) if doc.summary_names else ""
         }
         
         for field_name, field_value in fields_to_check.items():
@@ -220,8 +228,9 @@ class BM25SummaryIndex(IndexBuilder):
     
     def _create_snippet(self, doc: IndexDoc, query_tokens: List[str]) -> str:
         """Create a text snippet showing query matches."""
-        # Prefer summary, then title, then official identifier
+        # Prefer summary_names, then summary, then title, then official identifier
         text_sources = [
+            (" ".join(doc.summary_names) if doc.summary_names else "", "summary_names"),
             (doc.summary, "summary"),
             (doc.title, "title"), 
             (doc.official_identifier, "identifier")
