@@ -12,6 +12,7 @@ class LegalStructuralElement(BaseModel):
     officialIdentifier: str = Field(..., description="Official identifier of the structural element")
     title: str = Field(..., description="Title of the structural element")
     summary: Optional[str] = Field(None, description="Summary of the structural element")
+    summary_names: Optional[List[str]] = Field(None, description="Names of important concepts and relationships identified in the content of the structural element.")
     textContent: Optional[str] = Field(None, description="Text content of the structural element")
     elements: Optional[List['LegalStructuralElement']] = Field(None, description="List of parts of the structural element")
     elementType: str = Field(default="LegalStructuralElement", description="Type discriminator for proper deserialization")

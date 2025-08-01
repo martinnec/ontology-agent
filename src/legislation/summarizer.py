@@ -1,5 +1,6 @@
-
 import os
+import re
+from typing import List
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -22,6 +23,17 @@ summarization_system_prompt = """<ROLE>You are a helpful assistant that summariz
 - The summary must be in the same language as the given text.
 </INSTRUCTIONS>"""
 summarization_user_prompt = """<TEXT-TO-SUMMARIZE>{text}</TEXT-TO-SUMMARIZE>"""
+
+concept_list_system_prompt = """<ROLE>You are a helpful assistant that finds important semantic concepts and relationships between them in legal texts.</ROLE>
+<TASK>Your task is to identify important semantic concepts and relationships in the provided legal text content and list their names.</TASK>
+<INSTRUCTIONS>
+- The concepts and relationships must be directly extracted from the text.
+- The names must be concise, ideally 1-3 words but no more than 5 words each.
+- The names must be in their basic form (singular and first case for nouns, singular present tense for verbs, etc.)
+- The names must be in the same language as the given text.
+- Separate names by newlines.
+</INSTRUCTIONS>"""
+concept_list_user_prompt = """<TEXT-TO-EXTRACT-CONCEPTS>{text}</TEXT-TO-EXTRACT-CONCEPTS>"""
 
 class LegislationSummarizer:
     """
@@ -63,6 +75,7 @@ class LegislationSummarizer:
         """
         Recursively summarize a structural element and its sub-elements.
         Performs depth-first traversal and bottom-up summarization.
+        Also extracts concept names for each element.
         
         :param element: The structural element to summarize
         :return: The summary of the element
@@ -77,22 +90,35 @@ class LegislationSummarizer:
                 summaries.append(sub_summary)
         
         # Now summarize the current element (bottom-up)
+        content_for_processing = None
+        
         if element.textContent and not summaries:
             # Leaf element with text content - summarize based on text
+            content_for_processing = element.textContent
             element.summary = self._summarize_text(element.textContent)
         elif summaries:
             # Non-leaf element - summarize based on sub-element summaries
             combined_summaries = " ".join(summaries)
+            content_for_processing = combined_summaries
             element.summary = self._summarize_text(combined_summaries)
         elif element.textContent:
             # Element has both text content and sub-elements
             all_content = element.textContent + " " + " ".join(summaries)
+            content_for_processing = all_content
             element.summary = self._summarize_text(all_content)
         else:
             # Element has no content to summarize
             element.summary = f"Summary of {element.title}"
+            content_for_processing = element.title
+
+        # Extract concept names if we have content to process
+        if content_for_processing:
+            element.summary_names = self._extract_concept_names(content_for_processing)
+        else:
+            element.summary_names = []
 
         print(f"Summarized element ID: {element.officialIdentifier}, Summary: {element.summary}")
+        print(f"Extracted concept names: {element.summary_names}")
 
         return element.summary
     
@@ -121,3 +147,53 @@ class LegislationSummarizer:
             return response.choices[0].message.content.strip()
         else:
             raise ValueError("No summary generated from the text content")
+    
+    def _extract_concept_names(self, text: str) -> List[str]:
+        """
+        Helper method to extract names of important concepts and relationships from the given text content.
+        
+        :param text: The text content to extract concepts from
+        :return: A list of concept names
+        """
+        if not text or not text.strip():
+            return []
+        
+        messages=[
+            {"role": "system", "content": concept_list_system_prompt},
+            {"role": "user", "content": concept_list_user_prompt.format(text=text)}
+        ]
+        
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            max_tokens=500,  # Adjust as needed for concept list length
+            temperature=0.1  # Lower temperature for more consistent concept extraction
+        )
+        
+        if response.choices:
+            concept_text = response.choices[0].message.content.strip()
+            # Parse the response to extract individual concept names
+            # Assuming the LLM returns concepts separated by newlines or commas
+            concepts = []
+            for line in concept_text.split('\n'):
+                line = line.strip()
+                if line:
+                    # Remove bullet points, numbers, or other formatting
+                    line = re.sub(r'^[-•*\d+\.\)]\s*', '', line)
+                    # Split by commas if multiple concepts are on one line
+                    if ',' in line:
+                        concepts.extend([c.strip() for c in line.split(',') if c.strip()])
+                    else:
+                        concepts.append(line)
+            
+            # Filter out empty strings and duplicates while preserving order
+            seen = set()
+            filtered_concepts = []
+            for concept in concepts:
+                if concept and concept not in seen:
+                    seen.add(concept)
+                    filtered_concepts.append(concept)
+            
+            return filtered_concepts
+        else:
+            return []
