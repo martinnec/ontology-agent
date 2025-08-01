@@ -4,7 +4,7 @@ import re
 from typing import List
 from rdflib import Graph
 from pydantic import AnyUrl
-from .domain import LegalAct, LegalStructuralElement, LegalSection, LegalPart, LegalChapter, LegalDivision
+from .domain import LegalAct, LegalStructuralElement, LegalSection, LegalPart, LegalChapter, LegalDivision, create_legal_element
 from .datasource import LegislationDataSource
 
 class DataSourceESEL(LegislationDataSource):
@@ -31,16 +31,22 @@ class DataSourceESEL(LegislationDataSource):
             raise ValueError(f"Invalid legal_act_id format: {legal_act_id}")
         year, number, date = match.groups()
 
-        # Construct the file path
+        # Construct the file path relative to the workspace root
+        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
         file_name = f"{number}-{year}-{date}.json"
-        file_path = os.path.join("data", "legal_acts", file_name)
+        file_path = os.path.join(workspace_root, "data", "legal_acts", file_name)
 
         # Check if the JSON file exists
         if os.path.exists(file_path):
             try:
+                print(f"Debug: Loading file from: {file_path}")
                 with open(file_path, "r", encoding="utf-8") as file:
                     data = json.load(file)
-                    return LegalAct(**data)
+                    
+                    # Use the factory function to properly parse nested objects with correct types
+                    legal_act = create_legal_element(data)
+                    
+                    return legal_act
             except Exception as e:
                 raise RuntimeError(f"Failed to load legal act from file: {e}")
         else:
@@ -398,9 +404,10 @@ class DataSourceESEL(LegislationDataSource):
             raise ValueError(f"Invalid legal_act_id format: {legal_act_id}")
         year, number, date = match.groups()
 
-        # Construct the file path
+        # Construct the file path relative to the workspace root
+        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
         file_name = f"{number}-{year}-{date}.json"
-        file_path = os.path.join("data", "legal_acts", file_name)
+        file_path = os.path.join(workspace_root, "data", "legal_acts", file_name)
 
         # Save the legal act to a JSON file
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
