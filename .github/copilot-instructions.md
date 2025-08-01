@@ -9,8 +9,12 @@ The agent will be designed to be modular, allowing for easy updates and improvem
 # Coding Guidelines
 
 Follow the guidelines outlined in the [documentation/specification.md](documentation/specification.md) file for coding standards and practices.
-Whenever you implement something new, based either on the discussion in the chat or on your own research, ensure that you also update the documentation in the specification file [documentation/specification.md](documentation/specification.md) to reflect the changes made.
+Follow the development plan in the [documentation/development-plan.md](documentation/development-plan.md) and implement the module and iteration specified by the user as described in the plan.
 The project uses LLM API for some functionalities. It is always OPENAI API for which you need to set the `OPENAI_API_KEY` environment variable.
+
+# Documentation Guidelines
+Whenever you implement something new, based either on the discussion in the chat or on your own research, ensure that you also update the documentation in the specification file [documentation/specification.md](documentation/specification.md) to reflect the changes made.
+Always update the development plan in the [documentation/development-plan.md](documentation/development-plan.md) by clearly specifying of how you have progressed with the iterations specified in the plan.
 
 # Testing Guidelines
 

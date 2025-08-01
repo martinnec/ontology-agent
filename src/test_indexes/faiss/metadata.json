@@ -1,0 +1,14 @@
+{
+  "act_iri": "http://example.org/act/mock",
+  "snapshot_id": "2025-08-01T23:18:59.411592",
+  "created_at": "2025-08-01T23:18:59.411608",
+  "document_count": 5,
+  "index_type": "faiss_summary",
+  "metadata": {
+    "model_name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "embedding_dimension": 384,
+    "similarity_metric": "cosine",
+    "embedding_texts": "title + summary",
+    "valid_embeddings": 5
+  }
+}
