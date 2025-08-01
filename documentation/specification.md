@@ -4,44 +4,9 @@
 
 ## 0. Big Picture — What We’re Building & Core Principles
 
-### 0.1 One‑paragraph overview## 4. Indexing & Retrieval
+### 0.1 One‑paragraph overview
 
-### 4.1 Implementation Status
-
-**✅ COMPLETED - Iteration 1: Core Data Model**
-- `IndexDoc` class for representing searchable legal elements
-- `DocumentExtractor` for converting `LegalStructuralElement` → `IndexDoc`
-- Support for hierarchical document extraction with metadata preservation
-- Filtering and statistics utilities for document collections
-- Comprehensive test coverage with integration tests
-
-### 4.2 Indexes
-
-- **BM25‑Summary (primary):** index `summary^3 + title^2 + officialIdentifier^1`.
-- **BM25‑Full (optional):** include `textContent` for exact‑phrase lookups (e.g., "rozumí se", "musí", "je povinen").
-- **FAISS‑Summary (primary):** multilingual embeddings on `summary` (or `title + summary`).
-- **FAISS‑Full (optional):** embeddings over token‑bounded `textContent` slices for deeper recall.
-
-### 4.3 Document Model
-
-The `IndexDoc` class provides:
-- **Core fields:** `element_id`, `title`, `summary`, `official_identifier`, `text_content`
-- **Metadata:** `level`, `element_type`, `parent_id`, `child_ids`, `act_iri`, `snapshot_id`
-- **Search utilities:** `get_searchable_text()`, `get_weighted_fields()`
-- **Extraction:** `from_legal_element()` class method for conversion from legislation domain
-
-The `DocumentExtractor` utility provides:
-- **Hierarchy processing:** `extract_from_act()` recursively processes legal act structure
-- **Filtering:** `filter_documents()` supports type, level, content presence filters
-- **Analytics:** `get_document_stats()` provides document collection statistics
-
-### 4.4 Retrieval Strategy
-
-- Default queries → FAISS‑Summary for breadth → re‑rank with BM25‑Summary for precision.
-- For targeted phrases → constrain/re‑rank with BM25‑Full.
-- Add structural filters (type/level or `officialIdentifier` regex like `^§`).
-
-### 4.5 Caching & VersioningOntology Builder (AOB)** loads a **structured legal act** from our service (SPARQL‑backed), uses **summary‑first retrieval** to target the most informative elements, invokes an **LLM extractor** to propose classes/properties/axioms **grounded in the act’s exact text**, validates proposals with **SHACL** and **OWL‑RL reasoning**, and then **publishes** accepted axioms into a versioned **Published** ontology graph with complete **PROV‑O provenance**. It operates in small, auditable iterations (plan → extract → validate → publish) and supports human review where needed.
+The Agentic Ontology Builder (AOB)** loads a **structured legal act** from our service (SPARQL‑backed), uses **summary‑first retrieval** to target the most informative elements, invokes an **LLM extractor** to propose classes/properties/axioms **grounded in the act’s exact text**, validates proposals with **SHACL** and **OWL‑RL reasoning**, and then **publishes** accepted axioms into a versioned **Published** ontology graph with complete **PROV‑O provenance**. It operates in small, auditable iterations (plan → extract → validate → publish) and supports human review where needed.
 
 ### 0.2 Architecture at a glance
 
@@ -198,20 +163,67 @@ The `DocumentExtractor` utility provides:
 
 ## 4. Indexing & Retrieval
 
-### 4.1 Indexes
+### 4.1 Implementation Status
 
-- **BM25‑Summary (primary):** index `summary^3 + title^2 + officialIdentifier^1`.
-- **BM25‑Full (optional):** include `textContent` for exact‑phrase lookups (e.g., “rozumí se”, “musí”, “je povinen”).
-- **FAISS‑Summary (primary):** multilingual embeddings on `summary` (or `title + summary`).
-- **FAISS‑Full (optional):** embeddings over token‑bounded `textContent` slices for deeper recall.
+**✅ COMPLETED - Iteration 1: Core Data Model**
+- `IndexDoc` class for representing searchable legal elements
+- `DocumentExtractor` for converting `LegalStructuralElement` → `IndexDoc`
+- Support for hierarchical document extraction with metadata preservation
+- Filtering and statistics utilities for document collections
+- Comprehensive test coverage with integration tests
 
-### 4.2 Retrieval Strategy
+**✅ COMPLETED - Iteration 2: BM25 Summary Index**
+- `BM25SummaryIndex` implementation with weighted fields (summary^3, title^2, id^1)
+- Czech text tokenization and normalization
+- Advanced search filtering (element type, level, official identifier patterns)
+- Relevance-based ranking with BM25 scoring
+- Index persistence and loading capabilities
+- CLI tools: `python -m index.build` and `python -m index.search`
+- Comprehensive test coverage and demo scripts
+
+### 4.2 BM25 Implementation
+
+The `BM25SummaryIndex` provides:
+- **Weighted indexing:** `summary^3 + title^2 + officialIdentifier^1` for relevance tuning
+- **Czech tokenization:** Handles diacritics and legal text patterns
+- **Advanced filtering:** Element type, hierarchical level, regex pattern matching
+- **Search features:** Relevance scoring, matched field detection, snippet generation
+- **Persistence:** Save/load indexes with metadata and statistics
+- **CLI interface:** Build indexes and perform searches from command line
+
+**Performance characteristics:**
+- Fast keyword-based search suitable for exact term matching
+- Optimized for legal document structure with weighted fields
+- Efficient storage and loading of pre-built indexes
+- Supports complex filtering scenarios common in legal research
+
+### 4.3 Indexes
+
+- **BM25‑Summary (primary):** ✅ IMPLEMENTED - index `summary^3 + title^2 + officialIdentifier^1`.
+- **BM25‑Full (optional):** TODO - include `textContent` for exact‑phrase lookups (e.g., "rozumí se", "musí", "je povinen").
+- **FAISS‑Summary (primary):** TODO - multilingual embeddings on `summary` (or `title + summary`).
+- **FAISS‑Full (optional):** TODO - embeddings over token‑bounded `textContent` slices for deeper recall.
+
+### 4.4 Document Model
+
+The `IndexDoc` class provides:
+- **Core fields:** `element_id`, `title`, `summary`, `official_identifier`, `text_content`
+- **Metadata:** `level`, `element_type`, `parent_id`, `child_ids`, `act_iri`, `snapshot_id`
+- **Search utilities:** `get_searchable_text()`, `get_weighted_fields()`
+- **Extraction:** `from_legal_element()` class method for conversion from legislation domain
+
+The `DocumentExtractor` utility provides:
+- **Hierarchy processing:** `extract_from_act()` recursively processes legal act structure
+- **Filtering:** `filter_documents()` supports type, level, content presence filters
+- **Analytics:** `get_document_stats()` provides document collection statistics
+
+### 4.5 Retrieval Strategy
 
 - Default queries → FAISS‑Summary for breadth → re‑rank with BM25‑Summary for precision.
 - For targeted phrases → constrain/re‑rank with BM25‑Full.
 - Add structural filters (type/level or `officialIdentifier` regex like `^§`).
 
-### 4.3 Caching & Versioning
+### 4.5 Caching & Versioning
 
 - Index keys encode the act snapshot id so re‑indexing triggers automatically on updates.
 
@@ -371,15 +383,18 @@ Start with **definitions** and concept‑dense elements (ranked by summary); mai
   worker.py             # tool calls and side-effects
 /index/                 # ✅ IMPLEMENTED - Iteration 1
   __init__.py           # module initialization
-  domain.py             # IndexDoc, SearchQuery, SearchResult models
-  builder.py            # IndexBuilder interface, DocumentExtractor utilities
-  build.py              # create BM25/FAISS indexes from elements (TODO)
-  search.py             # summary/fulltext queries (TODO)
-  bm25.py               # BM25 index implementation (TODO)
+  domain.py             # IndexDoc, SearchQuery, SearchResult models ✅
+  builder.py            # IndexBuilder interface, DocumentExtractor utilities ✅
+  build.py              # CLI for building BM25/FAISS indexes ✅
+  search.py             # CLI for searching indexes ✅
+  bm25.py               # BM25 index implementation ✅
   faiss_index.py        # FAISS index implementation (TODO) 
   hybrid.py             # hybrid search strategy (TODO)
   test_domain.py        # unit tests for domain models ✅
   test_integration.py   # integration tests ✅
+  test_bm25.py          # BM25 implementation tests ✅
+  demo.py               # basic indexing demo ✅
+  demo_bm25.py          # BM25 functionality demo ✅
 /llm/
   extractor.py          # JSON/function-call interface to the model
 /ontology/
