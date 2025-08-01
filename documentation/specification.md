@@ -4,9 +4,44 @@
 
 ## 0. Big Picture — What We’re Building & Core Principles
 
-### 0.1 One‑paragraph overview
+### 0.1 One‑paragraph overview## 4. Indexing & Retrieval
 
-The **Agentic Ontology Builder (AOB)** loads a **structured legal act** from our service (SPARQL‑backed), uses **summary‑first retrieval** to target the most informative elements, invokes an **LLM extractor** to propose classes/properties/axioms **grounded in the act’s exact text**, validates proposals with **SHACL** and **OWL‑RL reasoning**, and then **publishes** accepted axioms into a versioned **Published** ontology graph with complete **PROV‑O provenance**. It operates in small, auditable iterations (plan → extract → validate → publish) and supports human review where needed.
+### 4.1 Implementation Status
+
+**✅ COMPLETED - Iteration 1: Core Data Model**
+- `IndexDoc` class for representing searchable legal elements
+- `DocumentExtractor` for converting `LegalStructuralElement` → `IndexDoc`
+- Support for hierarchical document extraction with metadata preservation
+- Filtering and statistics utilities for document collections
+- Comprehensive test coverage with integration tests
+
+### 4.2 Indexes
+
+- **BM25‑Summary (primary):** index `summary^3 + title^2 + officialIdentifier^1`.
+- **BM25‑Full (optional):** include `textContent` for exact‑phrase lookups (e.g., "rozumí se", "musí", "je povinen").
+- **FAISS‑Summary (primary):** multilingual embeddings on `summary` (or `title + summary`).
+- **FAISS‑Full (optional):** embeddings over token‑bounded `textContent` slices for deeper recall.
+
+### 4.3 Document Model
+
+The `IndexDoc` class provides:
+- **Core fields:** `element_id`, `title`, `summary`, `official_identifier`, `text_content`
+- **Metadata:** `level`, `element_type`, `parent_id`, `child_ids`, `act_iri`, `snapshot_id`
+- **Search utilities:** `get_searchable_text()`, `get_weighted_fields()`
+- **Extraction:** `from_legal_element()` class method for conversion from legislation domain
+
+The `DocumentExtractor` utility provides:
+- **Hierarchy processing:** `extract_from_act()` recursively processes legal act structure
+- **Filtering:** `filter_documents()` supports type, level, content presence filters
+- **Analytics:** `get_document_stats()` provides document collection statistics
+
+### 4.4 Retrieval Strategy
+
+- Default queries → FAISS‑Summary for breadth → re‑rank with BM25‑Summary for precision.
+- For targeted phrases → constrain/re‑rank with BM25‑Full.
+- Add structural filters (type/level or `officialIdentifier` regex like `^§`).
+
+### 4.5 Caching & VersioningOntology Builder (AOB)** loads a **structured legal act** from our service (SPARQL‑backed), uses **summary‑first retrieval** to target the most informative elements, invokes an **LLM extractor** to propose classes/properties/axioms **grounded in the act’s exact text**, validates proposals with **SHACL** and **OWL‑RL reasoning**, and then **publishes** accepted axioms into a versioned **Published** ontology graph with complete **PROV‑O provenance**. It operates in small, auditable iterations (plan → extract → validate → publish) and supports human review where needed.
 
 ### 0.2 Architecture at a glance
 
@@ -334,9 +369,17 @@ Start with **definitions** and concept‑dense elements (ranked by summary); mai
 /agent/
   planner.py            # state machine & policies
   worker.py             # tool calls and side-effects
-/index/
-  build.py              # create BM25/FAISS indexes from elements
-  search.py             # summary/fulltext queries
+/index/                 # ✅ IMPLEMENTED - Iteration 1
+  __init__.py           # module initialization
+  domain.py             # IndexDoc, SearchQuery, SearchResult models
+  builder.py            # IndexBuilder interface, DocumentExtractor utilities
+  build.py              # create BM25/FAISS indexes from elements (TODO)
+  search.py             # summary/fulltext queries (TODO)
+  bm25.py               # BM25 index implementation (TODO)
+  faiss_index.py        # FAISS index implementation (TODO) 
+  hybrid.py             # hybrid search strategy (TODO)
+  test_domain.py        # unit tests for domain models ✅
+  test_integration.py   # integration tests ✅
 /llm/
   extractor.py          # JSON/function-call interface to the model
 /ontology/
@@ -346,8 +389,15 @@ Start with **definitions** and concept‑dense elements (ranked by summary); mai
   patch.py              # OntologyPatch model & apply
 /provenance/
   prov.py               # PROV-O recording
-/service/
-  service.py            # access to legal act & elements (SPARQL-backed)
+/legislation/           # ✅ IMPLEMENTED
+  __init__.py           # module initialization
+  domain.py             # LegalAct, LegalStructuralElement models
+  datasource.py         # data source interface
+  datasource_esel.py    # ESEL implementation
+  service.py            # high-level service operations
+  summarizer.py         # AI summarization capabilities
+  test_service.py       # service tests
+```
   cache.py              # snapshots of acts and elements
 /tests/
   unit/  integration/  e2e/
