@@ -1,0 +1,18 @@
+pydantic
+python-dotenv>=1.0.0
+
+# Indexing and retrieval dependencies
+numpy>=1.21.0
+scikit-learn>=1.0.0
+sentence-transformers>=2.2.0
+faiss-cpu>=1.7.0  # Use faiss-gpu if GPU available
+
+# Text processing
+nltk>=3.8
+spacy>=3.4.0
+
+# Ontology and knowledge graph dependencies
+rdflib>=6.2.0
+
+# LLM dependencies
+openai>=1.0.0
