@@ -28,6 +28,8 @@ sys.path.insert(0, str(src_dir))
 from index.domain import IndexDoc, ElementType, IndexMetadata
 from index.bm25 import BM25SummaryIndex
 from index.faiss_index import FAISSSummaryIndex
+from index.bm25_full import BM25FullIndex
+from index.faiss_full import FAISSFullIndex
 
 # Optional imports for legislation service
 try:
@@ -48,46 +50,40 @@ def create_mock_documents() -> List[IndexDoc]:
             official_identifier="§ 1",
             summary="Tento zákon upravuje základní pravidla a postupy pro správu a ochranu osobních údajů v České republice.",
             summary_names=["osobní údaje", "ochrana", "správa"],
+            text_content="Tento zákon upravuje základní pravidla a postupy pro správu a ochranu osobních údajů v České republice. Pod pojmem osobní údaje se rozumí veškeré informace o identifikované nebo identifikovatelné fyzické osobě. Zpracování osobních údajů musí být v souladu s právními předpisy a musí respektovat práva subjektů údajů.",
             level=1,
             element_type=ElementType.SECTION,
             act_iri="http://example.org/act/mock"
         ),
         IndexDoc(
-            element_id="mock_2",
-            title="Definice pojmů",
+            element_id="mock_2", 
+            title="Práva subjektů údajů",
             official_identifier="§ 2",
-            summary="Pro účely tohoto zákona se rozumí osobními údaji veškeré informace o identifikované nebo identifikovatelné fyzické osobě.",
-            summary_names=["definice", "osobní údaje", "fyzická osoba"],
+            summary="Kapitola definuje práva fyzických osob při zpracování jejich osobních údajů, včetně práva na informace a přístup.",
+            summary_names=["práva subjektů", "přístup k údajům", "informace"],
+            text_content="Subjekt údajů má právo na informace o zpracování svých osobních údajů. Subjekt údajů má právo na přístup ke svým osobním údajům. Je povinen správce poskytnout subjektu údajů informace o účelech zpracování, kategorii osobních údajů a době uchování.",
             level=1,
             element_type=ElementType.SECTION,
             act_iri="http://example.org/act/mock"
         ),
         IndexDoc(
             element_id="mock_3",
-            title="Práva subjektů údajů",
-            official_identifier="§ 3",
-            summary="Subjekt údajů má právo na přístup ke svým osobním údajům, jejich opravu, výmaz nebo omezení zpracování.",
-            summary_names=["práva subjektů", "přístup", "oprava", "výmaz"],
+            title="Povinnosti správce",
+            official_identifier="§ 3", 
+            summary="Ustanovení stanoví základní povinnosti správce osobních údajů při jejich zpracování a ochraně.",
+            summary_names=["povinnosti správce", "zpracování údajů", "bezpečnost"],
+            text_content="Správce je povinen zajistit bezpečnost zpracování osobních údajů. Správce musí implementovat vhodná technická a organizační opatření. Správce je povinen vést evidenci zpracovatelských činností a musí být schopen prokázat soulad s právními předpisy.",
             level=1,
             element_type=ElementType.SECTION,
             act_iri="http://example.org/act/mock"
         ),
         IndexDoc(
             element_id="mock_4",
-            title="Povinnosti správce",
+            title="Přestupky a sankce",
             official_identifier="§ 4",
-            summary="Správce osobních údajů je povinen zajistit odpovídající technická a organizační opatření k ochraně údajů.",
-            summary_names=["povinnosti správce", "technická opatření", "organizační opatření"],
-            level=1,
-            element_type=ElementType.SECTION,
-            act_iri="http://example.org/act/mock"
-        ),
-        IndexDoc(
-            element_id="mock_5",
-            title="Sankce",
-            official_identifier="§ 5",
-            summary="Za porušení povinností stanovených tímto zákonem lze uložit pokutu až do výše 20 milionů EUR.",
-            summary_names=["sankce", "pokuta", "porušení povinností"],
+            summary="Vymezení přestupků proti ochraně osobních údajů a stanovení sankcí za jejich porušení.",
+            summary_names=["přestupky", "sankce", "porušení"],
+            text_content="Přestupku se dopustí ten, kdo poruší povinnosti stanovené tímto zákonem. Za přestupek lze uložit pokutu až do výše 10 000 000 Kč. Přestupky projednávají správní orgány podle zvláštních právních předpisů.",
             level=1,
             element_type=ElementType.SECTION,
             act_iri="http://example.org/act/mock"
@@ -180,6 +176,96 @@ def build_both_indexes(documents: List[IndexDoc], output_dir: str) -> None:
     print(f"\nBoth indexes built successfully in {output_dir}")
 
 
+def build_bm25_full_index(documents: List[IndexDoc], output_dir: str) -> None:
+    """Build BM25 full-text index from documents."""
+    print(f"\nBuilding BM25 full-text index with {len(documents)} documents...")
+    
+    # Filter documents that have text content
+    docs_with_content = [doc for doc in documents if doc.text_content]
+    if not docs_with_content:
+        print("Warning: No documents with text content found for full-text indexing")
+        return
+    
+    print(f"Found {len(docs_with_content)} documents with text content")
+    
+    # Create and build index
+    index = BM25FullIndex()
+    index.build(docs_with_content)
+    
+    # Save index
+    bm25_full_dir = Path(output_dir) / "bm25_full"
+    bm25_full_dir.mkdir(parents=True, exist_ok=True)
+    index.save(bm25_full_dir)
+    
+    print(f"BM25 full-text index saved to {bm25_full_dir}")
+    
+    # Print statistics
+    if index.metadata:
+        print(f"BM25 Full-Text Index Statistics:")
+        print(f"  - Source documents: {index.metadata.metadata.get('source_documents', 0)}")
+        print(f"  - Total chunks: {index.metadata.metadata.get('total_chunks', 0)}")
+        print(f"  - Chunk size: {index.metadata.metadata.get('chunk_size', 0)} words")
+        print(f"  - Chunk overlap: {index.metadata.metadata.get('chunk_overlap', 0)} words")
+
+
+def build_faiss_full_index(documents: List[IndexDoc], output_dir: str) -> None:
+    """Build FAISS full-text index from documents."""
+    print(f"\nBuilding FAISS full-text semantic index with {len(documents)} documents...")
+    
+    # Filter documents that have text content
+    docs_with_content = [doc for doc in documents if doc.text_content]
+    if not docs_with_content:
+        print("Warning: No documents with text content found for full-text indexing")
+        return
+    
+    print(f"Found {len(docs_with_content)} documents with text content")
+    
+    # Create and build index
+    index = FAISSFullIndex()
+    index.build(docs_with_content)
+    
+    # Save index
+    faiss_full_dir = Path(output_dir) / "faiss_full"
+    faiss_full_dir.mkdir(parents=True, exist_ok=True)
+    index.save(faiss_full_dir)
+    
+    print(f"FAISS full-text index saved to {faiss_full_dir}")
+    
+    # Print statistics
+    if index.metadata:
+        print(f"FAISS Full-Text Index Statistics:")
+        print(f"  - Source documents: {index.metadata.metadata.get('source_documents', 0)}")
+        print(f"  - Total chunks: {index.metadata.metadata.get('total_chunks', 0)}")
+        print(f"  - Embedding dimension: {index.metadata.metadata.get('embedding_dimension', 0)}")
+        print(f"  - Chunk size: {index.metadata.metadata.get('chunk_size', 0)} words")
+
+
+def build_full_text_indexes(documents: List[IndexDoc], output_dir: str) -> None:
+    """Build both BM25 and FAISS full-text indexes."""
+    print(f"\nBuilding both full-text indexes with {len(documents)} documents...")
+    
+    # Build BM25 full-text index
+    build_bm25_full_index(documents, output_dir)
+    
+    # Build FAISS full-text index
+    build_faiss_full_index(documents, output_dir)
+    
+    print(f"\nBoth full-text indexes built successfully in {output_dir}")
+
+
+def build_all_indexes(documents: List[IndexDoc], output_dir: str) -> None:
+    """Build all indexes: summary and full-text."""
+    print(f"\nBuilding all indexes (summary + full-text) with {len(documents)} documents...")
+    
+    # Build summary indexes
+    build_both_indexes(documents, output_dir)
+    
+    # Build full-text indexes
+    build_full_text_indexes(documents, output_dir)
+    
+    print(f"\nAll indexes built successfully in {output_dir}")
+
+
 def build_with_mock_data(index_type: str, output_dir: str) -> None:
     """Build indexes using mock data for testing."""
     print("Using mock data for testing...")
@@ -219,9 +305,9 @@ Examples:
     
     parser.add_argument(
         "--type",
-        choices=["bm25", "faiss", "both"],
+        choices=["bm25", "faiss", "both", "bm25_full", "faiss_full", "full_text", "all"],
         default="both",
-        help="Type of index to build (default: both)"
+        help="Type of index to build: bm25 (summary), faiss (summary), both (summary), bm25_full, faiss_full, full_text (both full), all (summary+full)"
     )
     
     parser.add_argument(
@@ -296,6 +382,14 @@ Examples:
                     FAISSSummaryIndex._default_model = original_model
         elif args.type == "both":
             build_both_indexes(documents, args.output_dir)
+        elif args.type == "bm25_full":
+            build_bm25_full_index(documents, args.output_dir)
+        elif args.type == "faiss_full":
+            build_faiss_full_index(documents, args.output_dir)
+        elif args.type == "full_text":
+            build_full_text_indexes(documents, args.output_dir)
+        elif args.type == "all":
+            build_all_indexes(documents, args.output_dir)
         
         print("\n✅ Index building completed successfully!")
         return 0

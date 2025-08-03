@@ -18,7 +18,7 @@ Always update the development plan in the [documentation/development-plan.md](do
 
 # Testing Guidelines
 
-We do not use any testing library or tool.
+We do not use any testing library or tool such as pytest.
 We write tests as simple Python scripts with main functions that can be run directly and print the results to the console.
 
 ## Test File Structure and Naming

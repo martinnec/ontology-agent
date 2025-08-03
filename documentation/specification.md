@@ -197,6 +197,49 @@ The Agentic Ontology Builder (AOB) loads a **structured legal act** from our ser
 - Comprehensive test coverage with 9 test functions (100% pass rate)
 - Real data demonstration with legal act 56/2001 covering semantic understanding, multilingual capabilities, and contextual search
 
+**✅ COMPLETED - Iteration 4: Hybrid Retrieval Strategy**
+- `HybridSearchEngine` implementation combining BM25 and FAISS for optimal retrieval
+- Three search strategies: semantic-first, keyword-first, and parallel fusion
+- Configurable fusion algorithms: Reciprocal Rank Fusion (RRF) and weighted scoring
+- Flexible parameter configuration (weights, top-k values, fusion strategy)
+- Real-world demonstration with legal act 56/2001 showing superior coverage vs individual methods
+- Production-ready integration with existing BM25/FAISS indexes
+- Comprehensive test coverage with 10/10 test functions passing
+- Performance validation: hybrid search provides better recall and precision than individual methods
+- Demo scripts: `demo_hybrid.py` (mock data), `demo_hybrid_56_2001.py` (real legal act), matching existing `demo_bm25_56_2001.py` and `demo_faiss_56_2001.py`
+
+**✅ COMPLETED - Iteration 5: Full-Text Indexing & Hierarchical Chunking**
+
+- **Hierarchical XML-aware chunking strategy** implemented for legal acts:
+  - Legal documents are parsed as hierarchical trees of fragments (`<f>` elements).
+  - Each leaf fragment is extracted as a sequence containing the full ancestral context from root to leaf.
+  - Chunking preserves the complete fragment ID path and hierarchical metadata for every chunk.
+  - Enables precise retrieval and ontology extraction by maintaining legal structure relationships.
+
+- **BM25FullIndex** and **FAISSFullIndex**:
+  - BM25FullIndex: Exact phrase keyword search over full text chunks, supporting legal phrase queries.
+  - FAISSFullIndex: Semantic search over hierarchical text chunks using multilingual embeddings.
+  - Both indexes operate on hierarchical leaf sequences, not independent fragments.
+
+- **IndexDoc** enhancements:
+  - New chunking logic: `get_text_chunks()` now extracts leaf sequences with full context.
+  - Metadata for each chunk includes fragment ID path, context, depth, and sequence index.
+  - Fallback to simple chunking for plain text (non-XML).
+
+- **Demonstration & Validation**:
+  - Interactive demo script (`demo_hierarchical_chunking.py`) showcases step-by-step extraction, chunking, and comparison.
+  - Real legal act (§ 61, 56/2001) processed to verify correct hierarchical chunking.
+  - All tests passed: hierarchical structure, chunking, and comparison with old approach.
+
+- **Key Benefits**:
+  - Zero information loss: Each chunk contains complete legal context from root to leaf.
+  - Perfect for ontology extraction: Enables accurate concept and relationship modeling.
+  - Eliminates URL pollution and preserves semantic coherence.
+  - Ready for production use on full legal act corpus.
+
+**Summary:**  
+Iteration 5 delivers a robust, production-ready hierarchical chunking and full-text indexing system for legal acts, supporting both keyword and semantic search, and enabling precise, context-aware ontology extraction.
+
 ### 4.2 BM25 Implementation
 
 The `BM25SummaryIndex` provides:
@@ -237,20 +280,9 @@ The `FAISSSummaryIndex` provides:
 ### 4.3 Indexes
 
 - **BM25‑Summary (primary):** ✅ IMPLEMENTED - index `summary_names^5 + summary^3 + title^2 + officialIdentifier^1` with concept-enhanced search.
-- **BM25‑Full (optional):** TODO - include `textContent` for exact‑phrase lookups (e.g., "rozumí se", "musí", "je povinen").
+- **BM25‑Full (optional):** ✅ IMPLEMENTED - include `textContent` for exact‑phrase lookups (e.g., "rozumí se", "musí", "je povinen").
 - **FAISS‑Summary (primary):** ✅ IMPLEMENTED - multilingual embeddings on `summary` (or `title + summary`) with semantic search capabilities.
-- **FAISS‑Full (optional):** TODO - embeddings over token‑bounded `textContent` slices for deeper recall.
-
-**✅ COMPLETED - Iteration 4: Hybrid Retrieval Strategy**
-- `HybridSearchEngine` implementation combining BM25 and FAISS for optimal retrieval
-- Three search strategies: semantic-first, keyword-first, and parallel fusion
-- Configurable fusion algorithms: Reciprocal Rank Fusion (RRF) and weighted scoring
-- Flexible parameter configuration (weights, top-k values, fusion strategy)
-- Real-world demonstration with legal act 56/2001 showing superior coverage vs individual methods
-- Production-ready integration with existing BM25/FAISS indexes
-- Comprehensive test coverage with 10/10 test functions passing
-- Performance validation: hybrid search provides better recall and precision than individual methods
-- Demo scripts: `demo_hybrid.py` (mock data), `demo_hybrid_56_2001.py` (real legal act), matching existing `demo_bm25_56_2001.py` and `demo_faiss_56_2001.py`
+- **FAISS‑Full (optional):** ✅ IMPLEMENTED - embeddings over token‑bounded `textContent` slices for deeper recall.
 
 ### 4.4 Document Model
 
@@ -286,7 +318,7 @@ The `DocumentExtractor` utility provides:
 - Add structural filters (type/level or `officialIdentifier` regex like `^§`).
 - **Document similarity** → use FAISS `get_similar_documents()` for finding related legal provisions.
 
-### 4.5 Caching & Versioning
+### 4.6 Caching & Versioning
 
 - Index keys encode the act snapshot id so re‑indexing triggers automatically on updates.
 

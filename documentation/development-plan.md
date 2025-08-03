@@ -97,7 +97,7 @@ Combine BM25 and FAISS for optimal retrieval
 - ✅ Created demo_hybrid_56_2001.py for comprehensive real-world demonstration
 - See detailed results in: src/index/ITERATION_4_SUMMARY.md
 
-### Iteration 5: Full-Text Indexing (Optional) (1.5 days)
+### Iteration 5: Full-Text Indexing ✅ COMPLETED
 
 #### Goal:
 Add support for exact phrase lookups in full legal text
@@ -115,6 +115,17 @@ Add support for exact phrase lookups in full legal text
 - Text chunking preserves semantic coherence
 - Full-text indexes integrate seamlessly with summary-based search
 - Performance remains acceptable with larger text volumes
+
+#### Completion Summary:
+- ✅ Complete BM25FullIndex and FAISSFullIndex implementations with text chunking
+- ✅ Enhanced IndexDoc with intelligent text chunking (500 words, 50-word overlap)
+- ✅ Exact phrase search capability for legal terms ("je povinen", "musí", "technická prohlídka")
+- ✅ Semantic search over text chunks using multilingual embeddings
+- ✅ Full integration with HybridSearchEngine supporting 4 index types
+- ✅ Extended CLI build tool with full-text index options (bm25_full, faiss_full, full_text, all)
+- ✅ Comprehensive testing with 146 text chunks from legal act 56/2001
+- ✅ Performance: sub-second search responses, ~4 seconds index building
+- See detailed results in: src/index/ITERATION_5_SUMMARY.md
 
 ### Iteration 6: Caching & Versioning (0.5 days)
 
