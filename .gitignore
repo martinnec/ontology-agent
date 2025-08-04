@@ -147,3 +147,4 @@ Thumbs.db
 # Project specific
 data/
 src/test_indexes/
+src/demo_indexes/
