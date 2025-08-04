@@ -10,7 +10,15 @@ The agent will be designed to be modular, allowing for easy updates and improvem
 
 Follow the guidelines outlined in the [documentation/specification.md](documentation/specification.md) file for coding standards and practices.
 Follow the development plan in the [documentation/development-plan.md](documentation/development-plan.md) and implement the module and iteration specified by the user as described in the plan.
-The project uses LLM API for some functionalities. It is always OPENAI API for which you need to set the `OPENAI_API_KEY` environment variable.
+The project uses LLM API for some functionalities. It is always OPENAI API for which you need to set the `OPENAI_API_KEY` environment variable. Use the `gpt-4.1-mini` model for LLM calls unless specified otherwise.
+You work with legal acts and you need their IDs. These IDs are IRIs and they have the format `https://opendata.eselpoint.cz/esel-esb/eli/cz/sb/[ISSUE-YEAR]]/[NUMBER]/[VALID-FROM-DATE]`, e.g. `https://opendata.eselpoint.cz/esel-esb/eli/cz/sb/2001/56/2025-07-01`.
+If a shorter identifier is needed, use `[NUMBER]-[YEAR]-[VALID-FROM-DATE]`, e.g. `56-2001-2025-07-01`.
+
+# Running Commands Guidelines
+
+The .venv environment is used for the project, and it should be activated before running any commands.
+The commands must run from 'src' directory.
+We are in Windows environment, so the commands should be compatible with Windows (no `&&`, but use `;` to separate commands).
 
 # Documentation Guidelines
 Whenever you implement something new, based either on the discussion in the chat or on your own research, ensure that you also update the documentation in the specification file [documentation/specification.md](documentation/specification.md) to reflect the changes made.
@@ -22,7 +30,7 @@ We do not use any testing library or tool such as pytest.
 We write tests as simple Python scripts with main functions that can be run directly and print the results to the console.
 
 ## Test File Structure and Naming
-- The tests should be placed directly in the src directory next to the code they are testing.
+- The tests should be placed directly in the module directory next to the code they are testing.
 - The tests should be named with a `test_` prefix (e.g., `test_service.py` for testing `service.py`).
 - Each test should be self-contained and runnable independently without requiring any setup or teardown.
 - Each test should be runnable in debug mode.
@@ -32,20 +40,16 @@ Each test file should follow this structure:
 
 ```python
 """
-Simple test for the [ModuleName].
-This test file follows the project's testing guidelines:
-- No testing library dependencies
-- Simple Python script with main function
-- Tests placed directly in src directory
-- Named with test_ prefix
-- Self-contained and runnable independently
+Unit/Integration/System test for the [ModuleName].
 
 HOW TO RUN:
+The virtual environment .venv should be activated before running the tests.
+
 From the src directory, run:
     python -m [package].[test_filename]
 
 Or from the project root:
-    cd src && python -m [package].[test_filename]
+    cd src; python -m [package].[test_filename]
 
 The test uses mock implementations to avoid external dependencies.
 """
