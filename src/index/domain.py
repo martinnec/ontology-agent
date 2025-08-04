@@ -14,7 +14,7 @@ import re
 
 class ElementType(str, Enum):
     """Types of legal structural elements."""
-    ACT = "act"
+    LEGAL_ACT = "legal_act"
     PART = "part"
     CHAPTER = "chapter"
     DIVISION = "division"
