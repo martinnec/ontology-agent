@@ -23,11 +23,14 @@ We are in Windows environment, so the commands should be compatible with Windows
 # Documentation Guidelines
 Whenever you implement something new, based either on the discussion in the chat or on your own research, ensure that you also update the documentation in the specification file [documentation/specification.md](documentation/specification.md) to reflect the changes made.
 Always update the development plan in the [documentation/development-plan.md](documentation/development-plan.md) by clearly specifying of how you have progressed with the iterations specified in the plan.
+For a module (a sub-directory in src, with an `__init__.py` file) with a public interface in `service.py`, create a demo script named `demo_[module_name]_service.py` showcasing the module's functionality and its usage by developers of other modules. Do not create any other demo scripts for the module, as the demo script should be comprehensive enough to demonstrate the module's capabilities.
 
 # Testing Guidelines
 
 We do not use any testing library or tool such as pytest.
 We write tests as simple Python scripts with main functions that can be run directly and print the results to the console.
+For a module (a sub-directory in src, with an `__init__.py` file) with a public interface in `service.py`, create one test file named `test_service.py` in the same directory which is the integration test for the module that tests the programmatic interface for accessing the module's functionality.
+FOr a module (a sub-directory in src, with an `__init__.py` file), create for each source file in the module except `service.py` a test file named `test_[filename].py` in the same directory which is the unit test for the module that tests the functionality of the source file inside the module.
 
 ## Test File Structure and Naming
 - The tests should be placed directly in the module directory next to the code they are testing.
@@ -127,20 +130,6 @@ if __name__ == "__main__":
 5. **Relative Imports**: Use relative imports (e.g., `from .service import LegislationService`) to ensure tests work when run as modules.
 6. **Comprehensive Coverage**: Test both successful operations and edge cases.
 7. **Independent Tests**: Each test function should be independent and not rely on state from other tests.
-
-## Running Tests
-
-Tests should be run as Python modules from the src directory:
-```bash
-cd src
-python -m [package].test_[module]
-```
-
-Example:
-```bash
-cd src
-python -m legislation.test_service
-```
 
 ## Test Output Format
 
