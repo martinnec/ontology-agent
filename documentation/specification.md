@@ -1,8 +1,4 @@
-# The Ag### 0.1 One‑paragraph overview
-
-The Agentic Ontology Builder (AOB) loads a **structured legal act** from our service (SPARQL‑backed), uses **hybrid summary‑first retrieval** (combining BM25 keyword and FAISS semantic search) to target the most informative elements, invokes an **LLM extractor** to propose classes/properties/axioms **grounded in the act's exact text**, validates proposals with **SHACL** and **OWL‑RL reasoning**, and then **publishes** accepted axioms into a versioned **Published** ontology graph with complete **PROV‑O provenance**. It operates in small, auditable iterations (plan → extract → validate → publish) and supports human review where needed.ic Ontology Builder (AOB)
-
-The Agentic Ontology Builder (AOB) loads a **structured legal act** from our service (SPARQL‑backed), uses **hybrid summary‑first retrieval** (combining BM25 keyword and FAISS semantic search) to target the most informative elements, invokes an **LLM extractor** to propose classes/properties/axioms **grounded in the act's exact text**, validates proposals with **SHACL** and **OWL‑RL reasoning**, and then **publishes** accepted axioms into a versioned **Published** ontology graph with complete **PROV‑O provenance**. It operates in small, auditable iterations (plan → extract → validate → publish) and supports human review where needed.
+# Agentic Ontology Builder
 
 ---
 
@@ -10,7 +6,8 @@ The Agentic Ontology Builder (AOB) loads a **structured legal act** from our ser
 
 ### 0.1 One‑paragraph overview
 
-The Agentic Ontology Builder (AOB) loads a **structured legal act** from our service (SPARQL‑backed), uses **summary‑first retrieval** to target the most informative elements, invokes an **LLM extractor** to propose classes/properties/axioms **grounded in the act’s exact text**, validates proposals with **SHACL** and **OWL‑RL reasoning**, and then **publishes** accepted axioms into a versioned **Published** ontology graph with complete **PROV‑O provenance**. It operates in small, auditable iterations (plan → extract → validate → publish) and supports human review where needed.
+The Agentic Ontology Builder (AOB) loads a **structured legal act** from our service (SPARQL‑backed), uses **hybrid summary‑first retrieval** (combining BM25 keyword and FAISS semantic search) to target the most informative elements, invokes an **LLM extractor** to propose classes/properties/axioms **grounded in the act's exact text**, validates proposals with **SHACL** and **OWL‑RL reasoning**, and then **publishes** accepted axioms into a versioned **Published** ontology graph with complete **PROV‑O provenance**. It operates in small, auditable iterations (plan → extract → validate → publish) and supports human review where needed.
+
 
 ### 0.2 Architecture at a glance
 
