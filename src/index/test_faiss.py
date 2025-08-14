@@ -26,7 +26,7 @@ from pathlib import Path
 os.environ["OPENAI_API_KEY"] = "dummy-key-for-testing"
 
 # Import statements using relative imports
-from .faiss_index import FAISSSummaryIndex
+from .faiss import FAISSSummaryIndex
 from .domain import IndexDoc, SearchQuery, ElementType
 
 
@@ -178,7 +178,7 @@ def test_build_index_with_mocks():
     
     # Patch the dependencies to use our mocks
     import sys
-    import index.faiss_index as faiss_module
+    import index.faiss as faiss_module
     
     original_sentence_transformer = getattr(faiss_module, 'SentenceTransformer', None)
     original_faiss = getattr(faiss_module, 'faiss', None)
@@ -230,7 +230,7 @@ def test_search_functionality():
     """Test search functionality with mocks."""
     print("Testing FAISS search functionality...")
     
-    import index.faiss_index as faiss_module
+    import index.faiss as faiss_module
     
     original_sentence_transformer = getattr(faiss_module, 'SentenceTransformer', None)
     original_faiss = getattr(faiss_module, 'faiss', None)
@@ -368,7 +368,7 @@ def test_save_and_load():
     """Test saving and loading index."""
     print("Testing save and load functionality...")
     
-    import index.faiss_index as faiss_module
+    import index.faiss as faiss_module
     
     original_sentence_transformer = getattr(faiss_module, 'SentenceTransformer', None)
     original_faiss = getattr(faiss_module, 'faiss', None)
@@ -448,7 +448,7 @@ def test_metadata_and_stats():
     """Test metadata and statistics."""
     print("Testing metadata and statistics...")
     
-    import index.faiss_index as faiss_module
+    import index.faiss as faiss_module
     
     original_sentence_transformer = getattr(faiss_module, 'SentenceTransformer', None)
     original_faiss = getattr(faiss_module, 'faiss', None)

@@ -24,7 +24,7 @@ except ImportError:
     BM25SummaryIndex = None
 
 try:
-    from .faiss_index import FAISSSummaryIndex
+    from .faiss import FAISSSummaryIndex
     FAISS_AVAILABLE = True
 except ImportError:
     FAISS_AVAILABLE = False

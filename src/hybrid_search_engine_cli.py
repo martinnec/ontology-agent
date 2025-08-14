@@ -8,23 +8,26 @@ and explore the search capabilities of the system.
 
 Usage:
     cd src
-    python hybrid_searc        try:
-            options = SearchOptions(
-                max_results=self.config['max_results'],
-                element_types=element_types if element_types else None
-            )
-            results = self.search_service.search_hybrid(query_text, options=options)
-            self._display_results(results, "Hybrid Search (Parallel)")
-        except Exception as e:
-            print(f"❌ Parallel search failed: {e}")cli.py
+    python hybrid_search_engine_cli.py
 
 Commands:
+    # Basic Search Commands
     search <query> [--types TYPE1,TYPE2]    - Perform hybrid search with optional type filter
-    semantic <query> [--types TYPE1,TYPE2]  - Search using semantic-first strategy
-    keyword <query> [--types TYPE1,TYPE2]   - Search using keyword-first strategy
+    semantic <query> [--types TYPE1,TYPE2]  - Search using semantic strategy
+    keyword <query> [--types TYPE1,TYPE2]   - Search using keyword strategy
     parallel <query> [--types TYPE1,TYPE2]  - Search using parallel fusion strategy
     fulltext <query> [--types TYPE1,TYPE2]  - Search in full-text content
     exact "<phrase>" [--types TYPE1,TYPE2]  - Search for exact phrase
+    
+    # Explicit Search Commands (new)
+    keyword_summary <query> [--types]       - BM25 search on summaries
+    semantic_summary <query> [--types]      - FAISS search on summaries  
+    hybrid_summary <query> [strategy] [--types] - Hybrid search on summaries
+    keyword_fulltext <query> [--types]      - BM25 search on full text
+    semantic_fulltext <query> [--types]     - FAISS search on full text
+    hybrid_fulltext <query> [strategy] [--types] - Hybrid search on full text
+    
+    # Analysis Commands
     compare <query> [--types TYPE1,TYPE2]   - Compare all search strategies
     quick [number]                          - Run predefined example queries
     config                                  - Show current configuration
@@ -33,17 +36,22 @@ Commands:
     help                                    - Show this help message
     exit / quit                             - Exit the CLI
 
+Hybrid Strategies:
+    semantic_first (default) - Semantic → keyword reranking
+    keyword_first            - Keyword → semantic reranking  
+    parallel                 - Parallel execution + score fusion
+
 Element Types:
     act, part, chapter, division, section, unknown
 
 Examples:
     search registrace vozidel
-    semantic technická kontrola --types section
-    keyword dopravní přestupky --types section,division
-    parallel povinné ručení
+    semantic_summary technická kontrola --types section
+    keyword_fulltext dopravní přestupky --types section,division
+    hybrid_fulltext povinné ručení parallel --types section
     compare technická kontrola --types chapter
     quick 1
-    config final_k 10
+    config max_results 10
     exact "musí být" --types section
     stats
 """
@@ -108,6 +116,20 @@ class HybridSearchCLI:
             'fulltext': self.cmd_fulltext_search,
             'full': self.cmd_fulltext_search,
             'exact': self.cmd_exact_search,
+            # New explicit search commands
+            'keyword_summary': self.cmd_keyword_summary_search,
+            'kws': self.cmd_keyword_summary_search,
+            'semantic_summary': self.cmd_semantic_summary_search,
+            'sems': self.cmd_semantic_summary_search,
+            'hybrid_summary': self.cmd_hybrid_summary_search,
+            'hybs': self.cmd_hybrid_summary_search,
+            'keyword_fulltext': self.cmd_keyword_fulltext_search,
+            'kwf': self.cmd_keyword_fulltext_search,
+            'semantic_fulltext': self.cmd_semantic_fulltext_search,
+            'semf': self.cmd_semantic_fulltext_search,
+            'hybrid_fulltext': self.cmd_hybrid_fulltext_search,
+            'hybf': self.cmd_hybrid_fulltext_search,
+            # Configuration and utility commands
             'config': self.cmd_config,
             'cfg': self.cmd_config,
             'stats': self.cmd_stats,
@@ -445,6 +467,156 @@ class HybridSearchCLI:
             self._display_results(results, f"Exact Phrase: '{phrase}'")
         except Exception as e:
             print(f"❌ Exact phrase search failed: {e}")
+
+    # New explicit search command methods
+    def cmd_keyword_summary_search(self, args: List[str]):
+        """Perform keyword search on summaries explicitly."""
+        if not args:
+            print("Usage: keyword_summary <query> [--types TYPE1,TYPE2,...]")
+            print("Performs BM25 keyword search on document summaries")
+            print("Types: act, part, chapter, division, section, unknown")
+            return
+        
+        query_text, element_types = self._parse_search_args(args)
+        print(f"🔑📋 Keyword Summary search: '{query_text}'")
+        
+        try:
+            options = SearchOptions(
+                max_results=self.config['max_results'],
+                element_types=element_types if element_types else None
+            )
+            results = self.search_service.search_keyword_summary(query_text, options)
+            self._display_results(results, "Keyword Summary Search")
+        except Exception as e:
+            print(f"❌ Keyword summary search failed: {e}")
+
+    def cmd_semantic_summary_search(self, args: List[str]):
+        """Perform semantic search on summaries explicitly."""
+        if not args:
+            print("Usage: semantic_summary <query> [--types TYPE1,TYPE2,...]")
+            print("Performs FAISS semantic search on document summaries")
+            print("Types: act, part, chapter, division, section, unknown")
+            return
+        
+        query_text, element_types = self._parse_search_args(args)
+        print(f"🧠📋 Semantic Summary search: '{query_text}'")
+        
+        try:
+            options = SearchOptions(
+                max_results=self.config['max_results'],
+                element_types=element_types if element_types else None
+            )
+            results = self.search_service.search_semantic_summary(query_text, options)
+            self._display_results(results, "Semantic Summary Search")
+        except Exception as e:
+            print(f"❌ Semantic summary search failed: {e}")
+
+    def cmd_hybrid_summary_search(self, args: List[str]):
+        """Perform hybrid search on summaries explicitly."""
+        if not args:
+            print("Usage: hybrid_summary <query> [strategy] [--types TYPE1,TYPE2,...]")
+            print("Strategies: semantic_first (default), keyword_first, parallel")
+            print("Performs hybrid search on document summaries")
+            print("Types: act, part, chapter, division, section, unknown")
+            return
+        
+        # Parse strategy if provided
+        strategy = "semantic_first"  # default
+        strategy_args = []
+        remaining_args = []
+        
+        for i, arg in enumerate(args):
+            if arg in ["semantic_first", "keyword_first", "parallel"]:
+                strategy = arg
+            else:
+                remaining_args.append(arg)
+        
+        query_text, element_types = self._parse_search_args(remaining_args)
+        print(f"🔀📋 Hybrid Summary search ({strategy}): '{query_text}'")
+        
+        try:
+            options = SearchOptions(
+                max_results=self.config['max_results'],
+                element_types=element_types if element_types else None
+            )
+            results = self.search_service.search_hybrid_summary(query_text, strategy, options)
+            self._display_results(results, f"Hybrid Summary Search ({strategy})")
+        except Exception as e:
+            print(f"❌ Hybrid summary search failed: {e}")
+
+    def cmd_keyword_fulltext_search(self, args: List[str]):
+        """Perform keyword search on full text explicitly."""
+        if not args:
+            print("Usage: keyword_fulltext <query> [--types TYPE1,TYPE2,...]")
+            print("Performs BM25 keyword search on full document text")
+            print("Types: act, part, chapter, division, section, unknown")
+            return
+        
+        query_text, element_types = self._parse_search_args(args)
+        print(f"🔑📄 Keyword Full-text search: '{query_text}'")
+        
+        try:
+            options = SearchOptions(
+                max_results=self.config['max_results'],
+                element_types=element_types if element_types else None
+            )
+            results = self.search_service.search_keyword_fulltext(query_text, options)
+            self._display_results(results, "Keyword Full-text Search")
+        except Exception as e:
+            print(f"❌ Keyword fulltext search failed: {e}")
+
+    def cmd_semantic_fulltext_search(self, args: List[str]):
+        """Perform semantic search on full text explicitly."""
+        if not args:
+            print("Usage: semantic_fulltext <query> [--types TYPE1,TYPE2,...]")
+            print("Performs FAISS semantic search on full document text")
+            print("Types: act, part, chapter, division, section, unknown")
+            return
+        
+        query_text, element_types = self._parse_search_args(args)
+        print(f"🧠📄 Semantic Full-text search: '{query_text}'")
+        
+        try:
+            options = SearchOptions(
+                max_results=self.config['max_results'],
+                element_types=element_types if element_types else None
+            )
+            results = self.search_service.search_semantic_fulltext(query_text, options)
+            self._display_results(results, "Semantic Full-text Search")
+        except Exception as e:
+            print(f"❌ Semantic fulltext search failed: {e}")
+
+    def cmd_hybrid_fulltext_search(self, args: List[str]):
+        """Perform hybrid search on full text explicitly."""
+        if not args:
+            print("Usage: hybrid_fulltext <query> [strategy] [--types TYPE1,TYPE2,...]")
+            print("Strategies: semantic_first (default), keyword_first, parallel")
+            print("Performs hybrid search on full document text")
+            print("Types: act, part, chapter, division, section, unknown")
+            return
+        
+        # Parse strategy if provided
+        strategy = "semantic_first"  # default
+        remaining_args = []
+        
+        for i, arg in enumerate(args):
+            if arg in ["semantic_first", "keyword_first", "parallel"]:
+                strategy = arg
+            else:
+                remaining_args.append(arg)
+        
+        query_text, element_types = self._parse_search_args(remaining_args)
+        print(f"🔀📄 Hybrid Full-text search ({strategy}): '{query_text}'")
+        
+        try:
+            options = SearchOptions(
+                max_results=self.config['max_results'],
+                element_types=element_types if element_types else None
+            )
+            results = self.search_service.search_hybrid_fulltext(query_text, strategy, options)
+            self._display_results(results, f"Hybrid Full-text Search ({strategy})")
+        except Exception as e:
+            print(f"❌ Hybrid fulltext search failed: {e}")
     
     def cmd_config(self, args: List[str]):
         """Show or modify configuration."""
@@ -521,21 +693,32 @@ class HybridSearchCLI:
         """Show help information."""
         print("\n📖 Hybrid Search Engine CLI Help")
         print("=" * 50)
-        print("\n🔍 Search Commands:")
-        print("  search <query> [--types TYPE1,TYPE2]  - Hybrid search with optional type filter")
-        print("  semantic <query> [--types TYPE1,TYPE2] - Semantic-first strategy")
-        print("  keyword <query> [--types TYPE1,TYPE2]  - Keyword-first strategy")
-        print("  parallel <query> [--types TYPE1,TYPE2] - Parallel fusion strategy")
-        print("  fulltext <query> [--types TYPE1,TYPE2] - Search in full-text content")
-        print('  exact "<phrase>" [--types TYPE1,TYPE2]  - Search for exact phrase')
+        print("\n🔍 Basic Search Commands:")
+        print("  search <query> [--types TYPE1,TYPE2]  - Hybrid search (default)")
+        print("  semantic <query> [--types TYPE1,TYPE2] - Semantic search")
+        print("  keyword <query> [--types TYPE1,TYPE2]  - Keyword search")
+        print("  parallel <query> [--types TYPE1,TYPE2] - Parallel fusion search")
+        print("  fulltext <query> [--types TYPE1,TYPE2] - Full-text search")
+        print('  exact "<phrase>" [--types TYPE1,TYPE2]  - Exact phrase search')
+        print("\n🔍 Explicit Search Commands:")
+        print("  keyword_summary <query> [--types]     - BM25 search on summaries (kws)")
+        print("  semantic_summary <query> [--types]    - FAISS search on summaries (sems)")
+        print("  hybrid_summary <query> [strategy] [--types] - Hybrid on summaries (hybs)")
+        print("  keyword_fulltext <query> [--types]    - BM25 search on full text (kwf)")
+        print("  semantic_fulltext <query> [--types]   - FAISS search on full text (semf)")
+        print("  hybrid_fulltext <query> [strategy] [--types] - Hybrid on full text (hybf)")
+        print("\n🎯 Hybrid Strategies:")
+        print("  semantic_first (default) - Semantic → keyword reranking")
+        print("  keyword_first            - Keyword → semantic reranking")
+        print("  parallel                 - Parallel execution + score fusion")
         print("\n🎯 Element Type Filtering:")
         print("  Available types: act, part, chapter, division, section, unknown")
         print("  Examples:")
         print("    search registrace --types section,division")
-        print("    semantic technická kontrola --types chapter")
-        print("    keyword dopravní přestupky --types section")
+        print("    semantic_summary technická kontrola --types chapter")
+        print("    hybrid_fulltext registrace semantic_first --types section")
         print('    exact "musí být" --types section')
-        print("    fulltext kategorie M1 --types part")
+        print("    semantic_fulltext kategorie M1 --types part")
         print("\n🔧 Analysis Commands:")
         print("  compare <query> [--types TYPE1,TYPE2] - Compare all strategies for a query")
         print("  compare                 - Compare strategies for last query")
@@ -551,24 +734,22 @@ class HybridSearchCLI:
         print("  exit / quit / q         - Exit the CLI")
         print("\n💡 Example Queries for Vehicle Law 56/2001:")
         print("  search registrace vozidel")
-        print("  semantic technická kontrola --types section")
-        print("  keyword dopravní přestupky --types section,division")
-        print("  parallel povinné ručení")
+        print("  semantic_summary technická kontrola --types section")
+        print("  keyword_fulltext dopravní přestupky --types section,division")
+        print("  hybrid_fulltext povinné ručení parallel --types section")
         print('  exact "musí být" --types section')
-        print("  fulltext kategorie M1 --types part")
         print("  compare registrace vozidel --types section")
         print("  quick 1")
         print("\n⚙️  Configuration Examples:")
-        print("  config final_k 15       - Show 15 results instead of default")
-        print("  config faiss_weight 0.7 - Increase semantic weight")
-        print("  config bm25_weight 0.3  - Decrease keyword weight")
+        print("  config max_results 15   - Show 15 results instead of default")
+        print("  config element_types section,chapter - Set default element filter")
         print("\n🔤 Short Commands:")
         print("  s, sem, kw, par, full, comp, cfg, stat, h, q")
-        print("\n📝 Element Type Filtering Notes:")
-        print("  • Element types filter results by legal document structure")
-        print("  • Multiple types can be specified: --types section,division")
-        print("  • Filtering is applied after search ranking")
-        print("  • If no results match the specified types, you'll get an empty result set")
+        print("  kws, sems, hybs, kwf, semf, hybf")
+        print("\n📝 Search Method Comparison:")
+        print("  Summary-focused methods work on document summaries (faster, conceptual)")
+        print("  Full-text methods work on complete document content (thorough, detailed)")
+        print("  Hybrid methods combine BM25 + FAISS for best of both approaches")
     
     def cmd_exit(self, args: List[str]):
         """Exit the CLI."""
@@ -601,9 +782,12 @@ class HybridSearchCLI:
             )
             
             strategies = [
-                ("semantic", "🧠 Semantic Search"),
-                ("keyword", "🔑 Keyword Search"), 
-                ("hybrid", "🔀 Hybrid Search")
+                ("keyword_summary", "🔑📋 Keyword Summary Search"),
+                ("semantic_summary", "🧠📋 Semantic Summary Search"),
+                ("hybrid_summary", "🔀📋 Hybrid Summary Search"),
+                ("keyword_fulltext", "🔑📄 Keyword Full-text Search"),
+                ("semantic_fulltext", "🧠📄 Semantic Full-text Search"),
+                ("hybrid_fulltext", "🔀📄 Hybrid Full-text Search")
             ]
             
             for strategy, title in strategies:
@@ -611,16 +795,23 @@ class HybridSearchCLI:
                 print("-" * 50)
                 
                 try:
-                    if strategy == "semantic":
-                        results = self.search_service.search_semantic(query_text, options)
-                    elif strategy == "keyword":
-                        results = self.search_service.search_keyword(query_text, options)
-                    else:  # hybrid
-                        results = self.search_service.search_hybrid(query_text, options)
+                    if strategy == "keyword_summary":
+                        results = self.search_service.search_keyword_summary(query_text, options)
+                    elif strategy == "semantic_summary":
+                        results = self.search_service.search_semantic_summary(query_text, options)
+                    elif strategy == "hybrid_summary":
+                        results = self.search_service.search_hybrid_summary(query_text, "semantic_first", options)
+                    elif strategy == "keyword_fulltext":
+                        results = self.search_service.search_keyword_fulltext(query_text, options)
+                    elif strategy == "semantic_fulltext":
+                        results = self.search_service.search_semantic_fulltext(query_text, options)
+                    elif strategy == "hybrid_fulltext":
+                        results = self.search_service.search_hybrid_fulltext(query_text, "semantic_first", options)
                     
                     if results.items:
                         for i, result in enumerate(results.items[:3], 1):  # Show top 3
                             print(f"#{i} | {result.score:.3f} | {result.title}")
+                        print(f"Total: {len(results.items)} results in {results.search_time_ms:.1f}ms")
                     else:
                         print("No results")
                 except Exception as e:
@@ -727,7 +918,7 @@ class HybridSearchCLI:
         try:
             # Import required modules
             from index.bm25 import BM25SummaryIndex
-            from index.faiss_index import FAISSSummaryIndex
+            from index.faiss import FAISSSummaryIndex
             from index.bm25_full import BM25FullIndex
             from index.faiss_full import FAISSFullIndex
             from index.domain import IndexDoc
@@ -895,16 +1086,20 @@ class HybridSearchCLI:
             # Show summary if available
             if hasattr(result, 'summary') and result.summary:
                 summary_preview = result.summary[:200] + "..." if len(result.summary) > 200 else result.summary
-                print(f"     💭 {summary_preview}")
+                print(f"     💭 Summary: {summary_preview}")
             
             # Show snippet if available
             if hasattr(result, 'snippet') and result.snippet:
                 snippet_preview = result.snippet[:150] + "..." if len(result.snippet) > 150 else result.snippet
-                print(f"     🎯 Match: {snippet_preview}")
+                print(f"     🎯 Snippet: {snippet_preview}")
             
             # Show element type if available
             if hasattr(result, 'element_type') and result.element_type:
                 print(f"     📂 Type: {result.element_type}")
+
+            # Show text_content if available
+            if hasattr(result, 'text_content') and result.text_content:
+                print(f"     📄 text_content: {result.text_content}")
         
         if len(results.items) < results.total_found:
             print(f"\n... and {results.total_found - len(results.items)} more results")

@@ -66,8 +66,14 @@ class SearchService:
             results = self._search_hybrid_parallel(query, options)
         elif strategy == SearchStrategy.FULLTEXT:
             results = self._search_fulltext(query, options)
-        elif strategy == SearchStrategy.EXACT_PHRASE:
-            results = self._search_exact_phrase(query, options)
+        elif strategy == SearchStrategy.SEMANTIC_FULLTEXT:
+            results = self._search_semantic_fulltext(query, options)
+        elif strategy == SearchStrategy.HYBRID_FULLTEXT_SEMANTIC_FIRST:
+            results = self._search_hybrid_fulltext_semantic_first(query, options)
+        elif strategy == SearchStrategy.HYBRID_FULLTEXT_KEYWORD_FIRST:
+            results = self._search_hybrid_fulltext_keyword_first(query, options)
+        elif strategy == SearchStrategy.HYBRID_FULLTEXT_PARALLEL:
+            results = self._search_hybrid_fulltext_parallel(query, options)
         else:
             raise ValueError(f"Unknown search strategy: {strategy}")
         
@@ -83,9 +89,9 @@ class SearchService:
             search_time_ms=search_time_ms
         )
     
-    def search_keyword(self, query: str, options: Optional[SearchOptions] = None) -> SearchResults:
+    def search_keyword_summary(self, query: str, options: Optional[SearchOptions] = None) -> SearchResults:
         """
-        Perform keyword-based search using BM25 index.
+        Perform keyword-based search using BM25 index on summaries.
         
         Args:
             query: Search query text
@@ -96,9 +102,9 @@ class SearchService:
         """
         return self.search(query, SearchStrategy.KEYWORD, options)
     
-    def search_semantic(self, query: str, options: Optional[SearchOptions] = None) -> SearchResults:
+    def search_semantic_summary(self, query: str, options: Optional[SearchOptions] = None) -> SearchResults:
         """
-        Perform semantic search using FAISS index.
+        Perform semantic search using FAISS index on summaries.
         
         Args:
             query: Search query text
@@ -109,10 +115,10 @@ class SearchService:
         """
         return self.search(query, SearchStrategy.SEMANTIC, options)
     
-    def search_hybrid(self, query: str, strategy: str = "semantic_first",
-                     options: Optional[SearchOptions] = None) -> SearchResults:
+    def search_hybrid_summary(self, query: str, strategy: str = "semantic_first",
+                             options: Optional[SearchOptions] = None) -> SearchResults:
         """
-        Perform hybrid search combining keyword and semantic approaches.
+        Perform hybrid search combining keyword and semantic approaches on summaries.
         
         Args:
             query: Search query text
@@ -131,9 +137,9 @@ class SearchService:
         search_strategy = strategy_map.get(strategy, SearchStrategy.HYBRID_SEMANTIC_FIRST)
         return self.search(query, search_strategy, options)
     
-    def search_fulltext(self, query: str, options: Optional[SearchOptions] = None) -> SearchResults:
+    def search_keyword_fulltext(self, query: str, options: Optional[SearchOptions] = None) -> SearchResults:
         """
-        Perform full-text search in document text chunks.
+        Perform keyword-based full-text search in document text chunks.
         
         Args:
             query: Search query text
@@ -144,18 +150,40 @@ class SearchService:
         """
         return self.search(query, SearchStrategy.FULLTEXT, options)
     
-    def search_exact_phrase(self, phrase: str, options: Optional[SearchOptions] = None) -> SearchResults:
+    def search_semantic_fulltext(self, query: str, options: Optional[SearchOptions] = None) -> SearchResults:
         """
-        Search for exact phrase matches.
+        Perform semantic search in document text chunks using FAISS full-text index.
         
         Args:
-            phrase: Exact phrase to search for
+            query: Search query text
             options: Search options and filters
             
         Returns:
             SearchResults containing matched documents
         """
-        return self.search(phrase, SearchStrategy.EXACT_PHRASE, options)
+        return self.search(query, SearchStrategy.SEMANTIC_FULLTEXT, options)
+    
+    def search_hybrid_fulltext(self, query: str, strategy: str = "semantic_first",
+                              options: Optional[SearchOptions] = None) -> SearchResults:
+        """
+        Perform hybrid search combining keyword and semantic approaches on full text.
+        
+        Args:
+            query: Search query text
+            strategy: Hybrid strategy ("semantic_first", "keyword_first", "parallel")
+            options: Search options and filters
+            
+        Returns:
+            SearchResults containing matched documents
+        """
+        strategy_map = {
+            "semantic_first": SearchStrategy.HYBRID_FULLTEXT_SEMANTIC_FIRST,
+            "keyword_first": SearchStrategy.HYBRID_FULLTEXT_KEYWORD_FIRST,
+            "parallel": SearchStrategy.HYBRID_FULLTEXT_PARALLEL
+        }
+        
+        search_strategy = strategy_map.get(strategy, SearchStrategy.HYBRID_FULLTEXT_SEMANTIC_FIRST)
+        return self.search(query, search_strategy, options)
     
     def search_similar(self, element_id: str, options: Optional[SearchOptions] = None) -> SearchResults:
         """
@@ -280,11 +308,56 @@ class SearchService:
             print(f"Warning: Full-text search failed: {e}")
             return []
     
-    def _search_exact_phrase(self, phrase: str, options: SearchOptions) -> List[SearchResultItem]:
-        """Search for exact phrase matches."""
-        # Use keyword search but with exact phrase matching
-        # This would need to be implemented in the BM25 index
-        return self._search_keyword(f'"{phrase}"', options)
+    def _search_semantic_fulltext(self, query: str, options: SearchOptions) -> List[SearchResultItem]:
+        """Perform semantic search in document chunks using FAISS full-text index."""
+        faiss_full_index = self._indexes.get_index('faiss_full')
+        if not faiss_full_index:
+            return []
+        
+        # Create search query for semantic full-text search
+        search_query = self._create_legacy_query(query, options)
+        
+        try:
+            raw_results = faiss_full_index.search(search_query)
+            return self._convert_legacy_results(raw_results, ['faiss_full'])
+        except Exception as e:
+            print(f"Warning: Semantic full-text search failed: {e}")
+            return []
+    
+    def _search_hybrid_fulltext_semantic_first(self, query: str, options: SearchOptions) -> List[SearchResultItem]:
+        """Hybrid full-text search: semantic first, then keyword reranking."""
+        # Get broader semantic results
+        semantic_options = SearchOptions(**options.model_dump())
+        semantic_options.max_results = options.rerank_count
+        
+        semantic_results = self._search_semantic_fulltext(query, semantic_options)
+        if not semantic_results:
+            return []
+        
+        # Re-rank with keyword search on full text
+        return self._rerank_with_keyword_fulltext(query, semantic_results, options)
+    
+    def _search_hybrid_fulltext_keyword_first(self, query: str, options: SearchOptions) -> List[SearchResultItem]:
+        """Hybrid full-text search: keyword first, then semantic reranking."""
+        # Get broader keyword results
+        keyword_options = SearchOptions(**options.model_dump())
+        keyword_options.max_results = options.rerank_count
+        
+        keyword_results = self._search_fulltext(query, keyword_options)
+        if not keyword_results:
+            return []
+        
+        # Re-rank with semantic search on full text
+        return self._rerank_with_semantic_fulltext(query, keyword_results, options)
+    
+    def _search_hybrid_fulltext_parallel(self, query: str, options: SearchOptions) -> List[SearchResultItem]:
+        """Hybrid full-text search: parallel execution with score fusion."""
+        # Run both searches in parallel (conceptually)
+        keyword_results = self._search_fulltext(query, options)
+        semantic_results = self._search_semantic_fulltext(query, options)
+        
+        # Fuse results using hybrid alpha
+        return self._fuse_results(keyword_results, semantic_results, options.hybrid_alpha)
     
     def _create_legacy_query(self, query: str, options: SearchOptions):
         """Create a legacy SearchQuery object for existing indexes."""
@@ -377,6 +450,20 @@ class SearchService:
         """Re-rank keyword results using semantic scores."""
         # This is a simplified implementation
         # In practice, you'd want to get semantic scores for these specific documents
+        return results[:options.max_results]
+    
+    def _rerank_with_keyword_fulltext(self, query: str, results: List[SearchResultItem], 
+                                    options: SearchOptions) -> List[SearchResultItem]:
+        """Re-rank semantic full-text results using keyword scores."""
+        # This is a simplified implementation
+        # In practice, you'd want to get keyword scores for these specific documents using bm25_full
+        return results[:options.max_results]
+    
+    def _rerank_with_semantic_fulltext(self, query: str, results: List[SearchResultItem],
+                                     options: SearchOptions) -> List[SearchResultItem]:
+        """Re-rank keyword full-text results using semantic scores."""
+        # This is a simplified implementation
+        # In practice, you'd want to get semantic scores for these specific documents using faiss_full
         return results[:options.max_results]
     
     def _fuse_results(self, keyword_results: List[SearchResultItem], 

@@ -144,7 +144,7 @@ class FAISSIndexBuilder(IndexBuilder):
     def build(self, documents: List[IndexDoc], output_dir: str, 
               act_identifier: str) -> Any:
         """Build FAISS index."""
-        from .faiss_index import FAISSSummaryIndex
+        from .faiss import FAISSSummaryIndex
         
         # Create FAISS index
         index = FAISSSummaryIndex()
@@ -161,7 +161,7 @@ class FAISSIndexBuilder(IndexBuilder):
     
     def load(self, index_path: str) -> Any:
         """Load FAISS index."""
-        from .faiss_index import FAISSSummaryIndex
+        from .faiss import FAISSSummaryIndex
         
         index = FAISSSummaryIndex()
         index.load(index_path)

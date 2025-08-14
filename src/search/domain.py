@@ -12,13 +12,19 @@ from enum import Enum
 
 class SearchStrategy(str, Enum):
     """Available search strategies."""
-    KEYWORD = "keyword"           # BM25-based keyword search
-    SEMANTIC = "semantic"         # FAISS-based semantic search
-    HYBRID_SEMANTIC_FIRST = "hybrid_semantic_first"  # Semantic → Keyword reranking
-    HYBRID_KEYWORD_FIRST = "hybrid_keyword_first"    # Keyword → Semantic reranking
-    HYBRID_PARALLEL = "hybrid_parallel"              # Parallel execution + fusion
-    FULLTEXT = "fulltext"         # Full-text chunk search
-    EXACT_PHRASE = "exact_phrase" # Exact phrase matching
+    # Summary-focused strategies (original)
+    KEYWORD = "keyword"           # BM25-based keyword search on summaries
+    SEMANTIC = "semantic"         # FAISS-based semantic search on summaries
+    HYBRID_SEMANTIC_FIRST = "hybrid_semantic_first"  # Semantic → Keyword reranking on summaries
+    HYBRID_KEYWORD_FIRST = "hybrid_keyword_first"    # Keyword → Semantic reranking on summaries
+    HYBRID_PARALLEL = "hybrid_parallel"              # Parallel execution + fusion on summaries
+    
+    # Full-text strategies
+    FULLTEXT = "fulltext"         # BM25-based full-text chunk search
+    SEMANTIC_FULLTEXT = "semantic_fulltext"          # FAISS-based semantic search on full text
+    HYBRID_FULLTEXT_SEMANTIC_FIRST = "hybrid_fulltext_semantic_first"  # Semantic → Keyword reranking on full text
+    HYBRID_FULLTEXT_KEYWORD_FIRST = "hybrid_fulltext_keyword_first"    # Keyword → Semantic reranking on full text
+    HYBRID_FULLTEXT_PARALLEL = "hybrid_fulltext_parallel"              # Parallel execution + fusion on full text
 
 
 class SearchOptions(BaseModel):

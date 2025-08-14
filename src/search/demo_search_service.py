@@ -300,7 +300,7 @@ def demo_keyword_search(search_service):
     for query in test_queries:
         print(f"\nSearching for: '{query}'")
         try:
-            results = search_service.search_keyword(query)
+            results = search_service.search_keyword_summary(query)
             
             print(f"✓ Found {len(results.items)} results in {results.search_time_ms:.1f}ms")
             print(f"  Strategy: {results.strategy.value}")
@@ -331,7 +331,7 @@ def demo_semantic_search(search_service):
     for query in test_queries:
         print(f"\nSemantic search for: '{query}'")
         try:
-            results = search_service.search_semantic(query)
+            results = search_service.search_semantic_summary(query)
             
             print(f"✓ Found {len(results.items)} results in {results.search_time_ms:.1f}ms")
             print(f"  Strategy: {results.strategy.value}")
@@ -358,7 +358,7 @@ def demo_hybrid_search(search_service):
     for strategy in strategies:
         print(f"\n  Testing {strategy} strategy:")
         try:
-            results = search_service.search_hybrid(query, strategy=strategy)
+            results = search_service.search_hybrid_summary(query, strategy=strategy)
             
             print(f"  ✓ Found {len(results.items)} results using {results.strategy.value}")
             print(f"    Search time: {results.search_time_ms:.1f}ms")
@@ -387,7 +387,7 @@ def demo_search_with_filters(search_service):
     )
     
     try:
-        results = search_service.search_keyword("vozidel", options)
+        results = search_service.search_keyword_summary("vozidel", options)
         
         print(f"✓ Found {len(results.items)} results")
         print(f"  Filters applied: {results.filters_applied}")
@@ -407,7 +407,7 @@ def demo_search_with_filters(search_service):
     )
     
     try:
-        results = search_service.search_keyword("povinnosti", options)
+        results = search_service.search_keyword_summary("povinnosti", options)
         
         print(f"✓ Found {len(results.items)} results")
         print(f"  Title boost: {options.boost_title}")
@@ -455,7 +455,7 @@ def demo_fulltext_search(search_service):
     for query in queries:
         print(f"\nFull-text search for: '{query}'")
         try:
-            results = search_service.search_fulltext(query)
+            results = search_service.search_keyword_fulltext(query)
             
             print(f"✓ Found {len(results.items)} text chunks")
             print(f"  Strategy: {results.strategy.value}")
@@ -468,34 +468,6 @@ def demo_fulltext_search(search_service):
                     
         except Exception as e:
             print(f"✗ Full-text search failed: {e}")
-
-def demo_exact_phrase_search(search_service):
-    """Demonstrate exact phrase search functionality."""
-    print("\n" + "="*60)
-    print("DEMO: Exact Phrase Search")
-    print("="*60)
-    
-    # Test exact phrase searches
-    phrases = [
-        "je povinen",
-        "motorové vozidlo", 
-        "technická kontrola"
-    ]
-    
-    for phrase in phrases:
-        print(f"\nExact phrase search for: '{phrase}'")
-        try:
-            results = search_service.search_exact_phrase(phrase)
-            
-            print(f"✓ Found {len(results.items)} exact matches")
-            print(f"  Strategy: {results.strategy.value}")
-            
-            if results.items:
-                for i, item in enumerate(results.items[:2]):
-                    print(f"  {i+1}. {item.title} (score: {item.score:.2f})")
-                    
-        except Exception as e:
-            print(f"✗ Exact phrase search failed: {e}")
 
 def demo_search_comparison(search_service):
     """Demonstrate comparing different search strategies."""
@@ -541,11 +513,132 @@ def demo_search_comparison(search_service):
         else:
             print(f"{strategy:20} | ERROR: {data['error']}")
 
+def demo_explicit_search_methods(search_service):
+    """Demonstrate the new explicit search methods."""
+    print("\n" + "="*60)
+    print("DEMO: New Explicit Search Methods")
+    print("="*60)
+    
+    query = "registrace vozidel"
+    print(f"Testing new search methods with query: '{query}'\n")
+    
+    # Test summary-focused methods
+    print("SUMMARY-FOCUSED METHODS:")
+    print("-" * 25)
+    
+    # Keyword summary search
+    results = search_service.search_keyword_summary(query)
+    print(f"✓ search_keyword_summary(): {len(results.items)} results")
+    if results.items:
+        print(f"  Best match: {results.items[0].title} (score: {results.items[0].score:.2f})")
+    
+    # Semantic summary search  
+    results = search_service.search_semantic_summary(query)
+    print(f"✓ search_semantic_summary(): {len(results.items)} results")
+    if results.items:
+        print(f"  Best match: {results.items[0].title} (score: {results.items[0].score:.2f})")
+    
+    # Hybrid summary search
+    results = search_service.search_hybrid_summary(query, "semantic_first")
+    print(f"✓ search_hybrid_summary(semantic_first): {len(results.items)} results")
+    if results.items:
+        print(f"  Best match: {results.items[0].title} (score: {results.items[0].score:.2f})")
+    
+    print("\nFULL-TEXT METHODS:")
+    print("-" * 18)
+    
+    # Keyword fulltext search
+    results = search_service.search_keyword_fulltext(query)
+    print(f"✓ search_keyword_fulltext(): {len(results.items)} results")
+    if results.items:
+        print(f"  Best match: {results.items[0].title} (score: {results.items[0].score:.2f})")
+    
+    # Semantic fulltext search
+    results = search_service.search_semantic_fulltext(query)
+    print(f"✓ search_semantic_fulltext(): {len(results.items)} results")
+    if results.items:
+        print(f"  Best match: {results.items[0].title} (score: {results.items[0].score:.2f})")
+    
+    # Hybrid fulltext search variations
+    hybrid_strategies = ["semantic_first", "keyword_first", "parallel"]
+    for strategy in hybrid_strategies:
+        results = search_service.search_hybrid_fulltext(query, strategy)
+        print(f"✓ search_hybrid_fulltext({strategy}): {len(results.items)} results")
+        if results.items:
+            print(f"  Best match: {results.items[0].title} (score: {results.items[0].score:.2f})")
+
+def demo_extended_search_comparison(search_service):
+    """Demonstrate comparing all available search strategies."""
+    print("\n" + "="*60)
+    print("DEMO: Extended Search Strategy Comparison")
+    print("="*60)
+    
+    query = "technická kontrola"
+    print(f"Comparing ALL search strategies for: '{query}'\n")
+    
+    from search.domain import SearchStrategy
+    
+    # Test all available strategies
+    all_strategies = [
+        SearchStrategy.KEYWORD,
+        SearchStrategy.SEMANTIC,
+        SearchStrategy.HYBRID_SEMANTIC_FIRST,
+        SearchStrategy.HYBRID_KEYWORD_FIRST,
+        SearchStrategy.HYBRID_PARALLEL,
+        SearchStrategy.FULLTEXT,
+        SearchStrategy.SEMANTIC_FULLTEXT,
+        SearchStrategy.HYBRID_FULLTEXT_SEMANTIC_FIRST,
+        SearchStrategy.HYBRID_FULLTEXT_KEYWORD_FIRST,
+        SearchStrategy.HYBRID_FULLTEXT_PARALLEL
+    ]
+    
+    comparison_results = {}
+    
+    print("Strategy Results:")
+    print("-" * 80)
+    print(f"{'Strategy':<35} | {'Results':>7} | {'Time (ms)':>9} | {'Best Score':>10}")
+    print("-" * 80)
+    
+    for strategy in all_strategies:
+        try:
+            results = search_service.search(query, strategy=strategy)
+            comparison_results[strategy.value] = {
+                'count': len(results.items),
+                'time': results.search_time_ms,
+                'best_score': results.items[0].score if results.items else 0.0,
+                'best_title': results.items[0].title if results.items else "No results"
+            }
+            
+            data = comparison_results[strategy.value]
+            print(f"{strategy.value:<35} | {data['count']:>7} | {data['time']:>9.1f} | {data['best_score']:>10.2f}")
+            
+        except Exception as e:
+            print(f"{strategy.value:<35} | {'ERROR':>7} | {'-':>9} | {'-':>10}")
+            comparison_results[strategy.value] = {'error': str(e)}
+    
+    print("-" * 80)
+    
+    # Show summary by category
+    print("\nSummary by Category:")
+    print("=" * 40)
+    
+    categories = {
+        "Summary-focused": ["keyword", "semantic", "hybrid_semantic_first", "hybrid_keyword_first", "hybrid_parallel"],
+        "Full-text": ["fulltext", "semantic_fulltext", "hybrid_fulltext_semantic_first", "hybrid_fulltext_keyword_first", "hybrid_fulltext_parallel"]
+    }
+    
+    for category, strategies in categories.items():
+        print(f"\n{category}:")
+        for strategy in strategies:
+            if strategy in comparison_results and 'error' not in comparison_results[strategy]:
+                data = comparison_results[strategy]
+                print(f"  {strategy}: {data['count']} results, {data['time']:.1f}ms")
+
 def main():
     """Main demo function."""
-    print("SearchService Demo")
-    print("This demo showcases the unified search functionality")
-    print("of the SearchService across different search strategies.")
+    print("SearchService Demo - Extended Edition")
+    print("This demo showcases the comprehensive search functionality")
+    print("of the SearchService across all available search strategies.")
     
     try:
         # Initialize search service
@@ -558,25 +651,26 @@ def main():
         demo_search_with_filters(search_service)
         demo_similarity_search(search_service)
         demo_fulltext_search(search_service)
-        demo_exact_phrase_search(search_service)
+        demo_explicit_search_methods(search_service)
         demo_search_comparison(search_service)
+        demo_extended_search_comparison(search_service)
         
         print("\n" + "="*60)
         print("DEMO COMPLETED")
         print("="*60)
         print("This demo showed:")
-        print("✓ Keyword search using BM25 indexes")
-        print("✓ Semantic search using FAISS indexes")
-        print("✓ Hybrid search strategies")
+        print("✓ Keyword search using BM25 indexes (summary & full-text)")
+        print("✓ Semantic search using FAISS indexes (summary & full-text)")
+        print("✓ Hybrid search strategies (summary & full-text variants)")
         print("✓ Search filtering and options")
         print("✓ Similarity search")
         print("✓ Full-text search in document chunks")
-        print("✓ Exact phrase matching")
-        print("✓ Strategy comparison")
-        print("\nThe SearchService provides a unified interface for all")
-        print("search operations, making it easy to experiment with")
-        print("different strategies and find the best approach for")
-        print("your specific search needs.")
+        print("✓ Explicit search methods for all index combinations")
+        print("✓ Comprehensive strategy comparison")
+        print("\nThe SearchService now provides a complete matrix of")
+        print("search capabilities, allowing you to choose the optimal")
+        print("strategy for both summary-focused and full-text search")
+        print("operations across all available index types.")
         
     except KeyboardInterrupt:
         print("\nDemo interrupted by user")

@@ -27,7 +27,7 @@ sys.path.insert(0, str(src_dir))
 
 from index.domain import IndexDoc, ElementType, IndexMetadata
 from index.bm25 import BM25SummaryIndex
-from index.faiss_index import FAISSSummaryIndex
+from index.faiss import FAISSSummaryIndex
 from index.bm25_full import BM25FullIndex
 from index.faiss_full import FAISSFullIndex
 

@@ -124,10 +124,11 @@ class MockIndexService:
     def get_indexes(self, legal_act, force_rebuild: bool = False):
         """Return mock index collection."""
         collection = MockIndexCollection(str(legal_act.id))
-        # Pre-populate with some indexes
+        # Pre-populate with all available indexes
         collection.get_index("bm25")
         collection.get_index("faiss")
         collection.get_index("bm25_full")
+        collection.get_index("faiss_full")
         return collection
 
 # Import the module to test
@@ -177,7 +178,7 @@ def test_keyword_search():
         search_service = SearchService(index_service, legal_act)
         
         # Test keyword search
-        results = search_service.search_keyword("test query")
+        results = search_service.search_keyword_summary("test query")
         
         assert results is not None, "Should return SearchResults"
         assert results.query == "test query"
@@ -204,7 +205,7 @@ def test_semantic_search():
         search_service = SearchService(index_service, legal_act)
         
         # Test semantic search
-        results = search_service.search_semantic("test query")
+        results = search_service.search_semantic_summary("test query")
         
         assert results is not None, "Should return SearchResults"
         assert results.query == "test query"
@@ -226,7 +227,7 @@ def test_hybrid_search():
         strategies = ["semantic_first", "keyword_first", "parallel"]
         
         for strategy in strategies:
-            results = search_service.search_hybrid("test query", strategy=strategy)
+            results = search_service.search_hybrid_summary("test query", strategy=strategy)
             
             assert results is not None, f"Should return results for {strategy}"
             assert results.query == "test query"
@@ -253,7 +254,7 @@ def test_search_with_options():
             boost_summary=3.0
         )
         
-        results = search_service.search_keyword("test query", options)
+        results = search_service.search_keyword_summary("test query", options)
         
         assert results is not None, "Should return results with options"
         assert results.options is options, "Should preserve options in results"
@@ -296,8 +297,8 @@ def test_fulltext_search():
         legal_act = create_mock_legal_act()
         search_service = SearchService(index_service, legal_act)
         
-        # Test full-text search
-        results = search_service.search_fulltext("detailed content search")
+        # Test full-text search (now renamed method)
+        results = search_service.search_keyword_fulltext("detailed content search")
         
         assert results is not None, "Should return SearchResults"
         assert results.query == "detailed content search"
@@ -305,23 +306,54 @@ def test_fulltext_search():
     
     print("✓ Full-text search working correctly")
 
-def test_exact_phrase_search():
-    """Test exact phrase search functionality."""
-    print("Testing exact phrase search...")
+def test_new_search_methods():
+    """Test new search methods with explicit naming."""
+    print("Testing new search methods...")
     
     with tempfile.TemporaryDirectory() as temp_dir:
         index_service = MockIndexService(temp_dir)
         legal_act = create_mock_legal_act()
         search_service = SearchService(index_service, legal_act)
         
-        # Test exact phrase search
-        results = search_service.search_exact_phrase("exact phrase")
+        # Test keyword summary search
+        results = search_service.search_keyword_summary("test query")
+        assert results is not None
+        assert results.strategy == SearchStrategy.KEYWORD
         
-        assert results is not None, "Should return SearchResults"
-        assert results.query == "exact phrase"
-        assert results.strategy == SearchStrategy.EXACT_PHRASE
+        # Test semantic summary search
+        results = search_service.search_semantic_summary("test query")
+        assert results is not None
+        assert results.strategy == SearchStrategy.SEMANTIC
+        
+        # Test hybrid summary search
+        results = search_service.search_hybrid_summary("test query", "semantic_first")
+        assert results is not None
+        assert results.strategy == SearchStrategy.HYBRID_SEMANTIC_FIRST
+        
+        # Test keyword fulltext search
+        results = search_service.search_keyword_fulltext("test query")
+        assert results is not None
+        assert results.strategy == SearchStrategy.FULLTEXT
+        
+        # Test semantic fulltext search
+        results = search_service.search_semantic_fulltext("test query")
+        assert results is not None
+        assert results.strategy == SearchStrategy.SEMANTIC_FULLTEXT
+        
+        # Test hybrid fulltext search variants
+        hybrid_strategies = ["semantic_first", "keyword_first", "parallel"]
+        expected_strategies = [
+            SearchStrategy.HYBRID_FULLTEXT_SEMANTIC_FIRST,
+            SearchStrategy.HYBRID_FULLTEXT_KEYWORD_FIRST,
+            SearchStrategy.HYBRID_FULLTEXT_PARALLEL
+        ]
+        
+        for strategy, expected in zip(hybrid_strategies, expected_strategies):
+            results = search_service.search_hybrid_fulltext("test query", strategy)
+            assert results is not None
+            assert results.strategy == expected
     
-    print("✓ Exact phrase search working correctly")
+    print("✓ New search methods working correctly")
 
 def test_unified_search_interface():
     """Test the unified search interface with different strategies."""
@@ -340,7 +372,10 @@ def test_unified_search_interface():
             SearchStrategy.HYBRID_KEYWORD_FIRST,
             SearchStrategy.HYBRID_PARALLEL,
             SearchStrategy.FULLTEXT,
-            SearchStrategy.EXACT_PHRASE
+            SearchStrategy.SEMANTIC_FULLTEXT,
+            SearchStrategy.HYBRID_FULLTEXT_SEMANTIC_FIRST,
+            SearchStrategy.HYBRID_FULLTEXT_KEYWORD_FIRST,
+            SearchStrategy.HYBRID_FULLTEXT_PARALLEL
         ]
         
         for strategy in strategies:
@@ -361,7 +396,7 @@ def test_search_results_properties():
         legal_act = create_mock_legal_act()
         search_service = SearchService(index_service, legal_act)
         
-        results = search_service.search_keyword("test query")
+        results = search_service.search_keyword_summary("test query")
         
         # Test basic properties
         assert results.total_found >= 0, "Should have valid total_found"
@@ -414,7 +449,7 @@ def run_all_tests():
         test_search_with_options,
         test_similarity_search,
         test_fulltext_search,
-        test_exact_phrase_search,
+        test_new_search_methods,
         test_unified_search_interface,
         test_search_results_properties,
         test_error_handling,
