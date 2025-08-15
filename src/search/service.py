@@ -1,8 +1,66 @@
 """
 Search service providing unified access to search functionality.
 
-This module provides the main public interface for search operations across
-different index types, implementing various search strategies and result processing.
+Developer Guide (HOW TO CHOOSE A SEARCH METHOD)
+================================================
+The `SearchService` exposes a matrix of retrieval capabilities over two content layers:
+1. Summary layer (titles + summaries)  → fast, conceptual, good for topical discovery & navigation.
+2. Full‑text layer (chunked raw provisions) → slower, granular, good for precise citation & phrase search.
+
+Strategy Families (Summary layer):
+    search_keyword_summary      BM25 lexical match (precise term / phrase lookups, auto‑complete seeds)
+    search_semantic_summary     Embedding similarity (paraphrase / intent, cross‑lingual nuance)
+    search_hybrid_summary       Combined BM25 + Semantic (semantic_first | keyword_first | parallel)
+
+Strategy Families (Full‑text layer):
+    search_keyword_fulltext     BM25 over text chunks (exact wording, phrase queries in quotes)
+    search_semantic_fulltext    Embedding similarity on chunks (concept / paraphrase passage retrieval)
+    search_hybrid_fulltext      Hybrid BM25 + Semantic for passages (same variants)
+
+Similarity / Recommendation:
+    search_similar(element_id)  Related sections (semantic neighborhood) for “Users also viewed” / clustering.
+
+Hybrid Variant Selection:
+    semantic_first : High recall of conceptual candidates → lexical re‑rank for precision (default general UX).
+    keyword_first  : Start from tight lexical matches → semantic re‑rank for nuanced ordering (short / exact queries).
+    parallel       : Run both independently then fuse using `hybrid_alpha` (diversity, low coordination overhead).
+
+Typical Workflow Patterns:
+    Progressive Drill‑Down:
+        1. summary hybrid (semantic_first) for broad topical hit list.
+        2. user narrows / selects a section.
+        3. full‑text hybrid (keyword_first if phrase‑heavy, else semantic_first) for authoritative passages.
+
+    Exploratory Dashboard:
+        - parallel hybrid (summary) for balanced diverse list shown instantly; allow user to toggle to full‑text on demand.
+
+    Context Expansion for QA / LLM:
+        - summary semantic → gather candidate IDs → full‑text semantic/hybrid on those IDs for rich context windows.
+
+Important `SearchOptions` knobs:
+    max_results     Truncates final list (after fusion / rerank).
+    rerank_count    Candidate pool size for two‑stage hybrids (increase for recall at cost of latency).
+    hybrid_alpha    Fusion weight for parallel (0=keyword only, 1=semantic only).
+    element_types   Structural filtering (e.g., only 'section' for answer extraction).
+    min_level/max_level Hierarchical boundaries; combine with element_types for tight slices.
+    boost_title / boost_summary Influence underlying lexical scoring emphasis.
+
+Edge / Behavioral Notes:
+    - Missing underlying index returns empty list (no exception); inspect `index_types_used` if needed.
+    - Scores are comparable only within a single result set (do not mix raw scores across strategies).
+    - Similarity search ignores lexical filtering; post‑filter manually if required.
+
+Combining Programmatically:
+    - Use `search(query, strategy=SearchStrategy.XXX)` for enumeration or analytics.
+    - Prefer convenience wrappers for clarity & future stability.
+
+Mini Examples:
+    results = service.search_hybrid_summary("vehicle registration process", strategy="semantic_first")
+    results = service.search_keyword_fulltext('"musí být registrováno"')  # exact phrase
+    passages = service.search_hybrid_fulltext("mandatory insurance coverage scope", strategy="parallel")
+    related = service.search_similar(section_id)
+
+See `search/demo_search_service.py` + `hybrid_search_engine_cli.py` for comparative usage patterns.
 """
 
 import time
@@ -38,15 +96,20 @@ class SearchService:
     def search(self, query: str, strategy: SearchStrategy = SearchStrategy.HYBRID_SEMANTIC_FIRST,
                options: Optional[SearchOptions] = None) -> SearchResults:
         """
-        Perform search using the specified strategy.
-        
+        Low‑level unified entry point executing an explicit `SearchStrategy`.
+
+        Prefer the named convenience methods unless you are:
+          - Building a strategy comparison / benchmarking tool.
+          - Iterating through all strategies programmatically.
+          - Dynamically selecting strategy based on user intent classification.
+
         Args:
-            query: Search query text
-            strategy: Search strategy to use
-            options: Search options and filters
-            
+            query: Natural language query (wrap phrases in quotes for BM25 exact phrase bias).
+            strategy: Explicit enum controlling index choice + orchestration.
+            options: Optional tuning / filtering (see module docstring for guidance).
+
         Returns:
-            SearchResults containing matched documents
+            SearchResults populated with metadata (timing, score range, applied filters).
         """
         if options is None:
             options = SearchOptions()
@@ -89,45 +152,44 @@ class SearchService:
             search_time_ms=search_time_ms
         )
     
-    def search_keyword_summary(self, query: str, options: Optional[SearchOptions] = None) -> SearchResults:
-        """
-        Perform keyword-based search using BM25 index on summaries.
-        
-        Args:
-            query: Search query text
-            options: Search options and filters
-            
-        Returns:
-            SearchResults containing matched documents
-        """
+        def search_keyword_summary(self, query: str, options: Optional[SearchOptions] = None) -> SearchResults:
+                """
+                BM25 (lexical) search over titles + summaries.
+
+                Use when:
+                    - User supplies statute‑like wording / key domain terms.
+                    - Implementing quick suggestion lists (top N headings).
+                    - Need high precision on exact terms before semantic expansion.
+
+                Choose full‑text variant for wording confined to body text, not present in summaries.
+                """
         return self.search(query, SearchStrategy.KEYWORD, options)
     
-    def search_semantic_summary(self, query: str, options: Optional[SearchOptions] = None) -> SearchResults:
-        """
-        Perform semantic search using FAISS index on summaries.
-        
-        Args:
-            query: Search query text
-            options: Search options and filters
-            
-        Returns:
-            SearchResults containing matched documents
-        """
+        def search_semantic_summary(self, query: str, options: Optional[SearchOptions] = None) -> SearchResults:
+                """
+                Embedding (semantic) search over summaries for paraphrased / conceptual intent.
+
+                Good for:
+                    - User phrasing diverges from statutory wording.
+                    - Cross‑lingual / synonym heavy queries.
+                    - Early broad recall before narrowing filters or rerank.
+
+                Consider `search_hybrid_summary` for improved precision ordering.
+                """
         return self.search(query, SearchStrategy.SEMANTIC, options)
     
-    def search_hybrid_summary(self, query: str, strategy: str = "semantic_first",
-                             options: Optional[SearchOptions] = None) -> SearchResults:
-        """
-        Perform hybrid search combining keyword and semantic approaches on summaries.
-        
-        Args:
-            query: Search query text
-            strategy: Hybrid strategy ("semantic_first", "keyword_first", "parallel")
-            options: Search options and filters
-            
-        Returns:
-            SearchResults containing matched documents
-        """
+        def search_hybrid_summary(self, query: str, strategy: str = "semantic_first",
+                                                         options: Optional[SearchOptions] = None) -> SearchResults:
+                """
+                Hybrid (BM25 + Semantic) retrieval on summaries with selectable orchestration.
+
+                strategy:
+                    semantic_first (default): Semantic candidate recall → lexical rerank (balanced general default).
+                    keyword_first: Lexical precision first (short / specific queries) → semantic rerank for nuance.
+                    parallel: Independent execution + weighted fusion (`hybrid_alpha`) for diversity.
+
+                Tip: Increase `options.rerank_count` when using *first variants for better recall.
+                """
         strategy_map = {
             "semantic_first": SearchStrategy.HYBRID_SEMANTIC_FIRST,
             "keyword_first": SearchStrategy.HYBRID_KEYWORD_FIRST,
@@ -137,45 +199,44 @@ class SearchService:
         search_strategy = strategy_map.get(strategy, SearchStrategy.HYBRID_SEMANTIC_FIRST)
         return self.search(query, search_strategy, options)
     
-    def search_keyword_fulltext(self, query: str, options: Optional[SearchOptions] = None) -> SearchResults:
-        """
-        Perform keyword-based full-text search in document text chunks.
-        
-        Args:
-            query: Search query text
-            options: Search options and filters
-            
-        Returns:
-            SearchResults containing matched documents
-        """
+        def search_keyword_fulltext(self, query: str, options: Optional[SearchOptions] = None) -> SearchResults:
+                """
+                BM25 over full‑text chunks (precise wording / phrase focus).
+
+                Use for:
+                    - Compliance & citation extraction (exact phrases, quotes).
+                    - Audits where lexical fidelity is critical.
+                    - Locating statutory definitions with stable phrasing.
+
+                Wrap phrases in quotes to bias BM25 toward contiguous matches.
+                """
         return self.search(query, SearchStrategy.FULLTEXT, options)
     
-    def search_semantic_fulltext(self, query: str, options: Optional[SearchOptions] = None) -> SearchResults:
-        """
-        Perform semantic search in document text chunks using FAISS full-text index.
-        
-        Args:
-            query: Search query text
-            options: Search options and filters
-            
-        Returns:
-            SearchResults containing matched documents
-        """
+        def search_semantic_fulltext(self, query: str, options: Optional[SearchOptions] = None) -> SearchResults:
+                """
+                Semantic passage retrieval (embedding similarity) over full‑text chunks.
+
+                Use for:
+                    - Natural language questions needing contextual passages.
+                    - Paraphrased obligations / concepts not sharing identical wording.
+                    - Feeding downstream LLM summarization / QA pipelines.
+
+                Combine via `search_hybrid_fulltext` for lexical anchoring + conceptual breadth.
+                """
         return self.search(query, SearchStrategy.SEMANTIC_FULLTEXT, options)
     
-    def search_hybrid_fulltext(self, query: str, strategy: str = "semantic_first",
-                              options: Optional[SearchOptions] = None) -> SearchResults:
-        """
-        Perform hybrid search combining keyword and semantic approaches on full text.
-        
-        Args:
-            query: Search query text
-            strategy: Hybrid strategy ("semantic_first", "keyword_first", "parallel")
-            options: Search options and filters
-            
-        Returns:
-            SearchResults containing matched documents
-        """
+        def search_hybrid_fulltext(self, query: str, strategy: str = "semantic_first",
+                                                            options: Optional[SearchOptions] = None) -> SearchResults:
+                """
+                Hybrid (BM25 + Semantic) retrieval on full‑text chunks for high quality passage sets.
+
+                strategy guidelines mirror summary hybrid variants:
+                    semantic_first: Conceptual expansion first → lexical refinement (default for QA pipelines).
+                    keyword_first : Lexical filtering for precision → semantic ordering (tight queries / phrase heavy).
+                    parallel      : Fusion for diversity when latency acceptable.
+
+                Pattern: summary hybrid → user chooses relevant heading → full‑text hybrid for deep dive.
+                """
         strategy_map = {
             "semantic_first": SearchStrategy.HYBRID_FULLTEXT_SEMANTIC_FIRST,
             "keyword_first": SearchStrategy.HYBRID_FULLTEXT_KEYWORD_FIRST,
@@ -185,17 +246,19 @@ class SearchService:
         search_strategy = strategy_map.get(strategy, SearchStrategy.HYBRID_FULLTEXT_SEMANTIC_FIRST)
         return self.search(query, search_strategy, options)
     
-    def search_similar(self, element_id: str, options: Optional[SearchOptions] = None) -> SearchResults:
-        """
-        Find documents similar to the specified element (semantic similarity).
-        
-        Args:
-            element_id: ID of the reference element
-            options: Search options and filters
-            
-        Returns:
-            SearchResults containing similar documents
-        """
+        def search_similar(self, element_id: str, options: Optional[SearchOptions] = None) -> SearchResults:
+                """
+                Semantic neighborhood lookup ("related sections") for a given element id.
+
+                Scenarios:
+                    - Sidebar recommendations / "Users also viewed".
+                    - Thematic clustering / follow‑up exploration.
+                    - Detect near duplicates (inspect scores & content similarity manually).
+
+                Notes:
+                    - Currently uses summary semantic index; lexical filters may need manual post‑filtering.
+                    - Result query string is synthetic: `similar:<element_id>` for traceability.
+                """
         if options is None:
             options = SearchOptions()
         
@@ -536,8 +599,14 @@ class SearchService:
         """Create empty SearchResults object."""
         return self._create_search_results(query, strategy, options, [], 0.0)
     
-    def get_index_info(self) -> Dict[str, Any]:
-        """Get information about available indexes."""
+        def get_index_info(self) -> Dict[str, Any]:
+                """Return lightweight diagnostic info about loaded indexes.
+
+                Useful for:
+                    - Capability gating (hide UI controls if full‑text indexes absent).
+                    - Health checks / monitoring dashboards.
+                    - Emitting telemetry on active index coverage.
+                """
         info = {
             "act_iri": self._indexes.act_iri,
             "available_indexes": self._indexes.get_available_indexes(),
