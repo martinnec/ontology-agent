@@ -47,31 +47,12 @@ class LegislationService:
     def get_legal_act_element(self, element_id: AnyUrl) -> LegalStructuralElement:
         """
         Retrieve a specific structural element of a legal act by its unique identifier.
-        If summaries are missing for the containing legal act, they will be computed and stored.
         
         :param element_id: Unique identifier for the structural element as IRI
         :return: LegalStructuralElement object
         """
         # Get the element from datasource
         element = self.datasource.get_legal_act_element(element_id)
-        
-        # To check and compute summaries if needed, we need the whole legal act
-        # Extract legal act ID from element ID and get the full legal act
-        legal_act_id = self._extract_legal_act_id_from_element_id(element_id)
-        legal_act = self.datasource.get_legal_act(legal_act_id)
-        
-        # Check if summaries are present
-        if self._needs_summarization(legal_act):
-            # Generate summaries for the whole legal act
-            legal_act = self.summarizer.summarize(legal_act)
-            
-            # Store the updated legal act with summaries
-            self.datasource.store_legal_act(legal_act)
-            
-            # Find and return the updated element
-            updated_element = self._find_element_by_id(legal_act, str(element_id))
-            if updated_element:
-                return updated_element
         
         return element
     
@@ -102,30 +83,7 @@ class LegislationService:
                     return True
         
         return False
-    
-    def _extract_legal_act_id_from_element_id(self, element_id: AnyUrl) -> AnyUrl:
-        """
-        Extract the legal act ID from an element ID.
         
-        :param element_id: The element identifier
-        :return: The legal act identifier
-        """
-        element_id_str = str(element_id)
-        
-        # Handle section IDs (format: {legal_act_id}/par_{section_number})
-        if '/par_' in element_id_str:
-            return element_id_str.split('/par_')[0]
-        
-        # Handle other fragment IDs from SPARQL
-        if 'esel-esb/eli/cz/sb/' in element_id_str:
-            # Extract the base legal act URL
-            parts = element_id_str.split('/')
-            if len(parts) >= 7:
-                return '/'.join(parts[:7])  # Get the base legal act URL
-        
-        # If we can't parse it, assume it's already a legal act ID or try direct lookup
-        return element_id
-    
     def _find_element_by_id(self, legal_act: LegalAct, element_id: str) -> Optional[LegalStructuralElement]:
         """
         Find an element by its ID within a legal act.

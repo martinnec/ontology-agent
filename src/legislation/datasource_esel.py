@@ -1,7 +1,7 @@
 import json
 import os
 import re
-from typing import List
+from typing import List, Dict
 from rdflib import Graph
 from pydantic import AnyUrl
 from .domain import LegalAct, LegalStructuralElement, LegalSection, LegalPart, LegalChapter, LegalDivision, create_legal_element
@@ -13,55 +13,61 @@ class DataSourceESEL(LegislationDataSource):
     """
     def __init__(self):
         """
-        Initializes the data source with the SPARQL endpoint URL where the Czech legislation data can be accessed in RDF representation.
+        Initializes the data source with the SPARQL endpoint URL where the Czech legislation data can be accessed
+        in RDF representation. Adds a simple in-memory cache so repeated calls for the same legal act within the
+        same process avoid redundant disk reads / JSON deserialization.
         """
         self.sparql_endpoint = "https://opendata.eselpoint.cz/sparql"
+        # Simple in-memory cache: key = str(legal_act_id), value = LegalAct instance
+        self._cache: Dict[str, LegalAct] = {}
 
     def get_legal_act(self, legal_act_id: AnyUrl) -> LegalAct:
         """
-        Retrieve a legal act by its unique identifier either from a local cache or from the SPARQL endpoint.
-        If the legal act is not found in the local cache, it will be fetched from the SPARQL endpoint and stored in the cache.
-        
+        Retrieve a legal act by its unique identifier, using an in-memory cache, then local JSON file, then SPARQL.
+
         :param legal_act_id: Unique identifier for the legal act as IRI
         :return: LegalAct object
         """
-        # Extract year, number, and date from the legal_act_id
-        match = re.match(r"https://opendata\.eselpoint\.cz/esel-esb/eli/cz/sb/(\d{4})/(\d+)/(\d{4}-\d{2}-\d{2})", legal_act_id)
+        legal_act_id_str = str(legal_act_id)
+
+        # 1. In-memory cache hit
+        cached = self._cache.get(legal_act_id_str)
+        if cached is not None:
+            return cached
+
+        # 2. Local file
+        match = re.match(r"https://opendata\.eselpoint\.cz/esel-esb/eli/cz/sb/(\d{4})/(\d+)/(\d{4}-\d{2}-\d{2})", legal_act_id_str)
         if not match:
             raise ValueError(f"Invalid legal_act_id format: {legal_act_id}")
         year, number, date = match.groups()
 
-        # Construct the file path relative to the workspace root
         workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
         file_name = f"{number}-{year}-{date}.json"
         file_path = os.path.join(workspace_root, "data", "legal_acts", file_name)
 
-        # Check if the JSON file exists
         if os.path.exists(file_path):
             try:
                 print(f"Debug: Loading file from: {file_path}")
                 with open(file_path, "r", encoding="utf-8") as file:
                     data = json.load(file)
-                    
-                    # Use the factory function to properly parse nested objects with correct types
-                    legal_act = create_legal_element(data)
-                    
-                    return legal_act
+                legal_act = create_legal_element(data)
+                self._cache[legal_act_id_str] = legal_act
+                return legal_act
             except Exception as e:
                 raise RuntimeError(f"Failed to load legal act from file: {e}")
-        else:
-            # If the file does not exist, fetch the data from the SPARQL endpoint
-            legal_act = self._load_legal_act_from_esel(legal_act_id)
 
-            # Save the fetched data to a JSON file
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            try:
-                with open(file_path, "w", encoding="utf-8") as file:
-                    file.write(legal_act.model_dump_json(indent=2))
-            except Exception as e:
-                raise RuntimeError(f"Failed to save legal act to file: {e}")
+        # 3. Remote fetch (and persist locally)
+        legal_act = self._load_legal_act_from_esel(legal_act_id_str)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        try:
+            with open(file_path, "w", encoding="utf-8") as file:
+                file.write(legal_act.model_dump_json(indent=2))
+        except Exception as e:
+            raise RuntimeError(f"Failed to save legal act to file: {e}")
 
-            return legal_act
+        # Store in cache
+        self._cache[legal_act_id_str] = legal_act
+        return legal_act
 
     def _load_legal_act_from_esel(self, legal_act_id: str) -> LegalAct:
         """
@@ -373,14 +379,8 @@ class DataSourceESEL(LegislationDataSource):
         # Element IDs are typically in format: {legal_act_id}/par_{section_number} or similar
         element_id_str = str(element_id)
         
-        # Try to extract legal act ID from element ID
-        if '/par_' in element_id_str:
-            legal_act_id = element_id_str.split('/par_')[0]
-        else:
-            # If it's not a section, try to find the legal act ID in other ways
-            # For now, assume the element_id is the fragment_id from SPARQL
-            legal_act_id = self._extract_legal_act_id_from_fragment(element_id_str)
-        
+        # Extract legal act ID using helper
+        legal_act_id = self._extract_legal_act_id_from_element_id(element_id_str)
         # Get the legal act first
         legal_act = self.get_legal_act(legal_act_id)
         
@@ -435,6 +435,21 @@ class DataSourceESEL(LegislationDataSource):
         
         raise ValueError(f"Cannot extract legal act ID from fragment ID: {fragment_id}")
     
+    def _extract_legal_act_id_from_element_id(self, element_id: str) -> str:
+        """
+        Extract legal act ID from an element ID string using strict regex matching.
+        The element_id must contain the legal act prefix like:
+        https://opendata.eselpoint.cz/esel-esb/eli/cz/sb/{year}/{number}/{date}
+
+        :param element_id: The element identifier
+        :return: The extracted legal act ID
+        :raises ValueError: If the element_id does not contain a valid legal act ID
+        """
+        match = re.match(r"(https://opendata\.eselpoint\.cz/esel-esb/eli/cz/sb/\d{4}/\d+/\d{4}-\d{2}-\d{2})", element_id)
+        if match:
+            return match.group(1)
+        raise ValueError(f"element_id does not contain a valid legal act ID: {element_id}")
+
     def _find_element_by_id(self, element: LegalStructuralElement, target_id: str) -> LegalStructuralElement:
         """
         Recursively search for an element by its ID within a legal structure.
