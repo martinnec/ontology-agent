@@ -651,157 +651,84 @@ Start with **definitions** and concept‑dense elements (ranked by summary); mai
 
 **✅ IMPLEMENTED - Unified SearchService Interface**
 - `search_service = SearchService(index_service, legal_act)` (unified search operations)
-- `search_service.search(query: str, strategy: SearchStrategy, options: SearchOptions = None) -> SearchResults`
-- `search_service.search_keyword(query: str, options: SearchOptions = None) -> SearchResults` (BM25)
-- `search_service.search_semantic(query: str, options: SearchOptions = None) -> SearchResults` (FAISS)
-- `search_service.search_hybrid_semantic_first(query: str, options: SearchOptions = None) -> SearchResults`
-- `search_service.search_hybrid_keyword_first(query: str, options: SearchOptions = None) -> SearchResults`
-- `search_service.search_hybrid_parallel(query: str, options: SearchOptions = None) -> SearchResults`
-- `search_service.search_fulltext(query: str, options: SearchOptions = None) -> SearchResults`
-- `search_service.search_exact_phrase(query: str, options: SearchOptions = None) -> SearchResults`
-- `search_service.get_similar_documents(element_id: str, options: SearchOptions = None) -> SearchResults` (FAISS similarity)
+  Public convenience methods (explicit summary vs full‑text separation):
+  - `search_service.search(query: str, strategy: SearchStrategy, options: SearchOptions | None = None) -> SearchResults` (low‑level unified entrypoint)
+  - `search_service.search_keyword_summary(query, options=None)`  – BM25 over titles+summaries
+  - `search_service.search_semantic_summary(query, options=None)` – FAISS semantic over summaries
+  - `search_service.search_hybrid_summary(query, strategy="semantic_first"|"keyword_first"|"parallel", options=None)` – hybrid summaries
+  - `search_service.search_keyword_fulltext(query, options=None)`  – BM25 over full‑text chunks (phrase search by quoting: `"musí být"`)
+  - `search_service.search_semantic_fulltext(query, options=None)` – FAISS semantic over full‑text chunks
+  - `search_service.search_hybrid_fulltext(query, strategy="semantic_first"|"keyword_first"|"parallel", options=None)` – hybrid full‑text passage retrieval
+  - `search_service.search_similar(element_id, options=None)` – semantic neighborhood (related elements)
+  - `search_service.get_index_info()` – diagnostic index availability
 
-## Search Strategies & Use Cases
+  (Legacy method names like `search_keyword`, `search_fulltext`, `search_exact_phrase` have been consolidated into the explicit summary/full‑text API. Exact phrase search is performed by quoting the phrase in `search_keyword_fulltext`.)
 
-### **SearchStrategy.KEYWORD** - BM25 Keyword Search
-**Technology:** BM25 algorithm with weighted fields (`summary_names^5 + summary^3 + title^2 + officialIdentifier^1`)
+## Search Strategies & Use Cases (Updated)
 
-**Best for:**
-- **Exact term matching** - finding specific legal terms, identifiers, or phrases
-- **Concept-based search** - leveraging extracted `summary_names` for precise legal concept retrieval
-- **Official identifier searches** - finding sections by `§ 15`, `článek 3`, etc.
-- **Definition hunting** - searching for specific legal definitions and terminology
+We distinguish two content layers and associated strategy groups:
 
-**Performance:** Fast, sub-second responses for exact matches
+1. Summary layer (titles + summaries) – conceptual, fast navigation.
+2. Full‑text layer (hierarchical chunks) – detailed, citation & phrase fidelity.
 
-**Example use cases:**
+`SearchStrategy` enum (summary): `keyword`, `semantic`, `hybrid_semantic_first`, `hybrid_keyword_first`, `hybrid_parallel`
+
+`SearchStrategy` enum (full‑text): `fulltext`, `semantic_fulltext`, `hybrid_fulltext_semantic_first`, `hybrid_fulltext_keyword_first`, `hybrid_fulltext_parallel`
+
+### Summary Layer Convenience Methods
+
+| Method | Purpose | Pick When |
+|--------|---------|-----------|
+| `search_keyword_summary` | BM25 lexical over summaries | Exact legal terms, identifiers, short queries |
+| `search_semantic_summary` | Embedding similarity over summaries | Paraphrased / conceptual / cross‑lingual queries |
+| `search_hybrid_summary(..., semantic_first)` | Semantic breadth → lexical rerank | Balanced default general use |
+| `search_hybrid_summary(..., keyword_first)` | Lexical precision → semantic rerank | Short / highly specific terms, compliance checks |
+| `search_hybrid_summary(..., parallel)` | Independent + fused | Need diversity, exploratory UI |
+
+### Full‑Text Layer Convenience Methods
+
+| Method | Purpose | Pick When |
+|--------|---------|-----------|
+| `search_keyword_fulltext` | BM25 on chunks (supports quoted phrases) | Exact phrase / wording verification, citations |
+| `search_semantic_fulltext` | Embedding passage retrieval | Natural language question → passages |
+| `search_hybrid_fulltext(..., semantic_first)` | Concept first → lexical refine | LLM answer generation, broad Q&A |
+| `search_hybrid_fulltext(..., keyword_first)` | Lexical filter → semantic order | Phrase heavy or regulation code queries |
+| `search_hybrid_fulltext(..., parallel)` | Fused diversity | Research & analysis breadth |
+
+### Similarity
+`search_similar(element_id)` – related sections (semantic neighborhood) for recommendations, clustering, or expansion.
+
+### Phrase Search
+Use quotes inside keyword methods (summary or full‑text) to bias BM25 toward phrase matching: `search_keyword_fulltext('"musí být vybaven"')`.
+
+### Pattern Examples
 ```python
-# Find specific legal concepts
-results = search_service.search_keyword("silniční vozidlo")
-# Search by official identifiers  
-results = search_service.search_keyword("§ 15")
-# Find definition sections
-results = search_service.search_keyword("rozumí se")
+# Broad conceptual to detailed drill‑down
+topics = search_service.search_hybrid_summary("vehicle registration process")
+passages = search_service.search_hybrid_fulltext("mandatory insurance coverage scope")
+
+# Exact phrase verification in statute wording
+phrase_hits = search_service.search_keyword_fulltext('"je povinen zajistit"')
+
+# Recommendations while viewing a section
+related = search_service.search_similar(section_id)
 ```
 
-### **SearchStrategy.SEMANTIC** - FAISS Semantic Search
-**Technology:** Multilingual sentence transformers (`paraphrase-multilingual-MiniLM-L12-v2`) with 384-dimensional embeddings
-
-**Best for:**
-- **Conceptual understanding** - finding content related to concepts even without exact keyword matches
-- **Cross-language queries** - English queries finding relevant Czech legal content
-- **Exploratory research** - discovering related legal provisions and concepts
-- **Context-aware search** - understanding meaning beyond literal text matching
-
-**Performance:** Sub-second responses, excellent for discovering related content
-
-**Example use cases:**
-```python
-# Find conceptually related content
-results = search_service.search_semantic("vehicle registration process")
-# Discover related legal concepts
-results = search_service.search_semantic("dopravní nehoda")
-# Cross-language exploration
-results = search_service.search_semantic("traffic safety")
-```
-
-### **SearchStrategy.HYBRID_SEMANTIC_FIRST** - Default Hybrid Strategy
-**Technology:** FAISS breadth → BM25 precision re-ranking with configurable fusion (60/40 default weights)
-
-**Best for:**
-- **Comprehensive search** - combining broad semantic coverage with keyword precision
-- **General-purpose queries** - when you want both exact matches and related content
-- **Balanced results** - optimal recall and precision for most legal research scenarios
-- **Default choice** - recommended for most search operations
-
-**Performance:** ~30ms response times, superior coverage vs individual methods
-
-**Example use cases:**
-```python
-# Default comprehensive search
-results = search_service.search("registrace vozidel")
-# Most searches benefit from this strategy
-results = search_service.search_hybrid_semantic_first("technická kontrola")
-```
-
-### **SearchStrategy.HYBRID_KEYWORD_FIRST** - Keyword-Driven Hybrid
-**Technology:** BM25 precision → FAISS breadth enhancement
-
-**Best for:**
-- **Precision-first scenarios** - when exact keyword matches are primary, but you want related content too
-- **Legal research with specific terms** - starting with exact legal terminology, then expanding
-- **Definition-focused search** - finding exact definitions first, then related concepts
-- **Regulatory compliance** - ensuring specific legal requirements are found first
-
-**Example use cases:**
-```python
-# Precision-first with semantic enhancement
-results = search_service.search_hybrid_keyword_first("povinnost řidiče")
-# Legal compliance checks
-results = search_service.search_hybrid_keyword_first("§ 25 odstavec 2")
-```
-
-### **SearchStrategy.HYBRID_PARALLEL** - Parallel Fusion
-**Technology:** Simultaneous BM25 and FAISS execution with RRF or weighted scoring fusion
-
-**Best for:**
-- **Maximum coverage** - when you need the most comprehensive results possible
-- **Research scenarios** - exploring all aspects of a legal topic
-- **Quality comparison** - when you want to see how different approaches rank results
-- **Performance testing** - comparing effectiveness of different search methods
-
-**Example use cases:**
-```python
-# Maximum comprehensive coverage
-results = search_service.search_hybrid_parallel("dopravní předpisy")
-# Research exploration
-results = search_service.search_hybrid_parallel("sankce a pokuty")
-```
-
-### **SearchStrategy.FULLTEXT** - Full-Text Content Search
-**Technology:** BM25 and FAISS over hierarchical text chunks with complete legal context
-
-**Best for:**
-- **Detailed content analysis** - searching within the full text of legal provisions
-- **Exact phrase discovery** - finding specific legal phrases in their full context
-- **Deep legal research** - when summaries and titles are insufficient
-- **Contextual analysis** - understanding how terms are used within full legal texts
-
-**Example use cases:**
-```python
-# Deep content search
-results = search_service.search_fulltext("technická způsobilost vozidla")
-# Context-aware phrase search
-results = search_service.search_fulltext("je povinen zajistit")
-```
-
-### **SearchStrategy.EXACT_PHRASE** - Exact Phrase Matching
-**Technology:** BM25 exact phrase matching over full-text chunks
-
-**Best for:**
-- **Legal phrase verification** - confirming exact wording of legal requirements
-- **Compliance checking** - finding specific legal obligations or prohibitions
-- **Citation validation** - verifying exact legal language for citations
-- **Regulatory text lookup** - finding precise regulatory language
-
-**Example use cases:**
-```python
-# Exact legal phrase matching
-results = search_service.search_exact_phrase("je povinen")
-# Specific legal obligations
-results = search_service.search_exact_phrase("musí být vybaven")
-# Regulatory language verification
-results = search_service.search_exact_phrase("technická prohlídka")
-```
+### Strategy Selection Heuristics
+* Start summary layer (`search_hybrid_summary` semantic_first) for navigation.
+* Escalate to full‑text hybrid for answer extraction / citation.
+* Use keyword_first when precision matters and query is tight.
+* Use parallel when UI benefits from a blended diverse first page.
+* Maintain a larger `rerank_count` in options for *first hybrids to preserve recall.
 
 ## Advanced Features
 
 ### **Document Similarity Discovery**
 ```python
-# Find documents similar to a specific legal element
-similar = search_service.get_similar_documents(
-    element_id="https://...legal-element-iri",
-    options=SearchOptions(max_results=10)
+# Find documents similar to a specific legal element (semantic neighborhood)
+similar = search_service.search_similar(
+  element_id="https://...legal-element-iri",
+  options=SearchOptions(max_results=10)
 )
 ```
 **Use cases:** Discovering related legal provisions, finding similar regulatory patterns, legal precedent research
@@ -809,10 +736,15 @@ similar = search_service.get_similar_documents(
 ### **Search Configuration with SearchOptions**
 ```python
 options = SearchOptions(
-    max_results=20,                    # Control result count
-    element_types=["section", "part"], # Filter by legal element types
-    include_summary=True,              # Include AI-generated summaries
-    include_full_text=False           # Control full-text inclusion
+  max_results=20,                 # Final result list size
+  min_score=0.0,                  # Client-side thresholding
+  element_types=["section"],      # Structural filter (act|part|chapter|division|section|unknown)
+  min_level=None, max_level=None, # Hierarchy bounds
+  include_content=True,           # Include text_content in result items if available
+  boost_summary=2.0, boost_title=1.5,  # Lexical weighting hints (BM25 layer)
+  hybrid_alpha=0.5,               # Fusion weight (parallel hybrids): 0=keyword,1=semantic
+  rerank_count=50,                # Candidate pool for *first hybrids
+  chunk_overlap=True, chunk_size=500  # Full‑text chunking behavior
 )
 ```
 
@@ -830,15 +762,20 @@ keyword_check = search_service.search_keyword("dopravní nehoda")
 
 ## Performance Characteristics & Selection Guide
 
-| Strategy | Response Time | Precision | Recall | Best Use Case |
-|----------|---------------|-----------|---------|---------------|
-| **Keyword** | Sub-second | High | Medium | Exact terms, definitions |
-| **Semantic** | Sub-second | Medium | High | Exploratory, concepts |
-| **Hybrid Semantic-First** | ~30ms | High | High | **General purpose (recommended)** |
-| **Hybrid Keyword-First** | ~30ms | Very High | High | Precision-critical scenarios |
-| **Hybrid Parallel** | ~40ms | High | Very High | Comprehensive research |
-| **Fulltext** | ~50ms | High | Very High | Deep content analysis |
-| **Exact Phrase** | Sub-second | Very High | Low | Specific phrase validation |
+| Strategy (Layer) | Precision | Recall | Typical Latency* | Primary Use |
+|------------------|----------|--------|------------------|-------------|
+| keyword (summary) | High | Med | Low | Exact terms / identifiers |
+| semantic (summary) | Med | High | Low | Concept / paraphrase |
+| hybrid_semantic_first (summary) | High | High | Low | General default |
+| hybrid_keyword_first (summary) | Very High | High | Low | Precision‑critical |
+| hybrid_parallel (summary) | High | Very High | Low-Med | Diverse exploration |
+| fulltext (keyword) | High | High | Med | Phrase / wording verification |
+| semantic_fulltext | Med | High | Med | Passage retrieval for QA |
+| hybrid_fulltext_semantic_first | High | High | Med | Answer generation contexts |
+| hybrid_fulltext_keyword_first | Very High | High | Med | Tight compliance queries |
+| hybrid_fulltext_parallel | High | Very High | Med | Comprehensive research |
+
+*Indicative relative latencies; actual values depend on corpus size and hardware.
 
 ## Decision Matrix for Strategy Selection
 
@@ -878,14 +815,10 @@ keyword_check = search_service.search_keyword("dopravní nehoda")
 - Detailed content analysis required
 - Understanding contextual usage
 
-**Choose EXACT_PHRASE when:**
-- Verifying specific legal language
-- Citation accuracy requirements
-- Compliance phrase validation
-- Exact regulatory text lookup
+Phrase queries are handled by quoting terms in keyword methods (e.g., `search_keyword_fulltext('"musí být"')`).
 
-**All searches return `SearchResults` with unified `SearchResultItem` objects**
-**Performance: Optimized for Czech legal text with multilingual support**
+**All searches return `SearchResults` with unified `SearchResultItem` objects.**
+Scores are only comparable within a single result set; do not fuse raw scores across different strategy runs manually unless normalized.
 
 ### 7.3 LLM Extraction
 
