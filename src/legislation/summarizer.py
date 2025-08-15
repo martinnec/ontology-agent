@@ -24,16 +24,16 @@ summarization_system_prompt = """<ROLE>You are a helpful assistant that summariz
 </INSTRUCTIONS>"""
 summarization_user_prompt = """<TEXT-TO-SUMMARIZE>{text}</TEXT-TO-SUMMARIZE>"""
 
-concept_list_system_prompt = """<ROLE>You are a helpful assistant that finds important semantic concepts and relationships between them in legal texts.</ROLE>
-<TASK>Your task is to identify important semantic concepts and relationships in the provided legal text content and list their names.</TASK>
+term_list_system_prompt = """<ROLE>You are a helpful assistant that finds important terms in legal texts. A term is important if it refers to a semantic concept and relationship between concepts. A term can comprise more words.</ROLE>
+<TASK>Your task is to identify important terms in the provided legal text content and list them.</TASK>
 <INSTRUCTIONS>
-- The concepts and relationships must be directly extracted from the text.
-- The names must be concise, ideally 1-3 words but no more than 5 words each.
-- The names must be in their basic form (singular and first case for nouns, singular present tense for verbs, etc.)
+- The terms must be directly extracted from the text.
+- The terms must be concise, ideally 1-3 words but no more than 5 words each.
+- The names must be in their basic form (singular and first case for nouns, singular present tense for verbs, etc.). Always double-check that each extracted term is in its basic form.
 - The names must be in the same language as the given text.
 - Separate names by newlines.
 </INSTRUCTIONS>"""
-concept_list_user_prompt = """<TEXT-TO-EXTRACT-CONCEPTS>{text}</TEXT-TO-EXTRACT-CONCEPTS>"""
+term_list_user_prompt = """<TEXT-TO-EXTRACT-TERMS>{text}</TEXT-TO-EXTRACT-TERMS>"""
 
 class LegislationSummarizer:
     """
@@ -111,14 +111,14 @@ class LegislationSummarizer:
             element.summary = f"Summary of {element.title}"
             content_for_processing = element.title
 
-        # Extract concept names if we have content to process
+        # Extract terms if we have content to process
         if content_for_processing:
-            element.summary_names = self._extract_concept_names(content_for_processing)
+            element.summary_names = self._extract_terms(content_for_processing)
         else:
             element.summary_names = []
 
         print(f"Summarized element ID: {element.officialIdentifier}, Summary: {element.summary}")
-        print(f"Extracted concept names: {element.summary_names}")
+        print(f"Extracted terms: {element.summary_names}")
 
         return element.summary
     
@@ -148,52 +148,53 @@ class LegislationSummarizer:
         else:
             raise ValueError("No summary generated from the text content")
     
-    def _extract_concept_names(self, text: str) -> List[str]:
+    def _extract_terms(self, text: str) -> List[str]:
         """
-        Helper method to extract names of important concepts and relationships from the given text content.
-        
-        :param text: The text content to extract concepts from
-        :return: A list of concept names
+        Helper method to extract names of important terms and relationships from the given text content.
+
+        :param text: The text content to extract terms from
+        :return: A list of term names
         """
         if not text or not text.strip():
             return []
         
         messages=[
-            {"role": "system", "content": concept_list_system_prompt},
-            {"role": "user", "content": concept_list_user_prompt.format(text=text)}
+            {"role": "system", "content": term_list_system_prompt},
+            {"role": "user", "content": term_list_user_prompt.format(text=text)}
         ]
         
         response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
-            max_tokens=500,  # Adjust as needed for concept list length
-            temperature=0.1  # Lower temperature for more consistent concept extraction
+            max_tokens=500,  # Adjust as needed for term list length
+            temperature=0.1  # Lower temperature for more consistent term extraction
         )
         
         if response.choices:
-            concept_text = response.choices[0].message.content.strip()
-            # Parse the response to extract individual concept names
-            # Assuming the LLM returns concepts separated by newlines or commas
-            concepts = []
-            for line in concept_text.split('\n'):
+            term_text = response.choices[0].message.content.strip()
+            # Parse the response to extract individual term names
+            # Assuming the LLM returns terms separated by newlines or commas
+            terms = []
+            for line in term_text.split('\n'):
                 line = line.strip()
                 if line:
                     # Remove bullet points, numbers, or other formatting
                     line = re.sub(r'^[-•*\d+\.\)]\s*', '', line)
-                    # Split by commas if multiple concepts are on one line
+                    # Split by commas if multiple terms are on one line
                     if ',' in line:
-                        concepts.extend([c.strip() for c in line.split(',') if c.strip()])
+                        terms.extend([c.strip() for c in line.split(',') if c.strip()])
                     else:
-                        concepts.append(line)
-            
+                        terms.append(line)
+
             # Filter out empty strings and duplicates while preserving order
+            # Convert all terms to lowercase for consistency
             seen = set()
-            filtered_concepts = []
-            for concept in concepts:
-                if concept and concept not in seen:
-                    seen.add(concept)
-                    filtered_concepts.append(concept)
-            
-            return filtered_concepts
+            filtered_terms = []
+            for term in terms:
+                if term and term.lower() not in seen:
+                    seen.add(term.lower())
+                    filtered_terms.append(term.lower())
+
+            return filtered_terms
         else:
             return []

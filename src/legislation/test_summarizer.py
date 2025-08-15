@@ -177,7 +177,7 @@ def test_concept_names_parsing():
     
     # Test the _extract_concept_names method directly
     test_text = "This is a legal text about obligations and penalties."
-    concept_names = summarizer._extract_concept_names(test_text)
+    concept_names = summarizer._extract_terms(test_text)
     
     # Verify that concepts were extracted and parsed
     assert isinstance(concept_names, list)
