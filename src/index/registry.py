@@ -90,10 +90,12 @@ class BM25IndexBuilder(IndexBuilder):
         """Get BM25 index files."""
         import os
         index_dir = os.path.join(output_dir, act_identifier, "bm25")
-        base_path = os.path.join(index_dir, "bm25_index")
+        index_path = os.path.join(index_dir, "bm25_index")
         return [
-            f"{base_path}.pkl",
-            f"{base_path}_docs.json"
+            os.path.join(index_path, "bm25_model.pkl"),
+            os.path.join(index_path, "documents.pkl"),
+            os.path.join(index_path, "weighted_texts.pkl"),
+            os.path.join(index_path, "metadata.json")
         ]
 
 
@@ -131,10 +133,12 @@ class BM25FullIndexBuilder(IndexBuilder):
         """Get BM25 full-text index files."""
         import os
         index_dir = os.path.join(output_dir, act_identifier, "bm25_full")
-        base_path = os.path.join(index_dir, "bm25_full_index")
+        index_path = os.path.join(index_dir, "bm25_full_index")
         return [
-            f"{base_path}.pkl",
-            f"{base_path}_chunks.json"
+            os.path.join(index_path, "bm25_full_model.pkl"),
+            os.path.join(index_path, "text_chunks.pkl"),
+            os.path.join(index_path, "chunk_texts.pkl"),
+            os.path.join(index_path, "metadata.json")
         ]
 
 
@@ -171,10 +175,12 @@ class FAISSIndexBuilder(IndexBuilder):
         """Get FAISS index files."""
         import os
         index_dir = os.path.join(output_dir, act_identifier, "faiss")
-        base_path = os.path.join(index_dir, "faiss_index")
+        index_path = os.path.join(index_dir, "faiss_index")
         return [
-            f"{base_path}.index",
-            f"{base_path}_docs.json"
+            os.path.join(index_path, "faiss_index.bin"),
+            os.path.join(index_path, "embeddings.npy"),
+            os.path.join(index_path, "documents.pkl"),
+            os.path.join(index_path, "metadata.json")
         ]
 
 
@@ -212,10 +218,12 @@ class FAISSFullIndexBuilder(IndexBuilder):
         """Get FAISS full-text index files."""
         import os
         index_dir = os.path.join(output_dir, act_identifier, "faiss_full")
-        base_path = os.path.join(index_dir, "faiss_full_index")
+        index_path = os.path.join(index_dir, "faiss_full_index")
         return [
-            f"{base_path}.index",
-            f"{base_path}_chunks.json"
+            os.path.join(index_path, "faiss_full_index.bin"),
+            os.path.join(index_path, "text_chunks.pkl"),
+            os.path.join(index_path, "embeddings.npy"),
+            os.path.join(index_path, "metadata.json")
         ]
 
 

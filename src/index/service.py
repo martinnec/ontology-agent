@@ -6,6 +6,8 @@ indexes for legal acts. It coordinates between the processor, registry, store, a
 collection components to provide a clean, consistent API.
 """
 
+import os
+from pathlib import Path
 from typing import List, Optional, Union
 from .domain import IndexDoc
 from .processor import DocumentProcessor
@@ -233,7 +235,22 @@ class IndexService:
         
         try:
             index_dir = self.store.get_index_directory(act_identifier, index_type)
-            index_instance = builder.load(index_dir)
+            
+            # Construct the specific index path based on index type
+            # This matches the path structure used in the build method
+            if index_type == "bm25":
+                index_path = os.path.join(index_dir, "bm25_index")
+            elif index_type == "bm25_full":
+                index_path = Path(index_dir) / "bm25_full_index"
+            elif index_type == "faiss":
+                index_path = os.path.join(index_dir, "faiss_index")
+            elif index_type == "faiss_full":
+                index_path = Path(index_dir) / "faiss_full_index"
+            else:
+                # Fallback to the directory itself
+                index_path = index_dir
+            
+            index_instance = builder.load(index_path)
             return index_instance
             
         except Exception as e:

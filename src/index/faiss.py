@@ -378,8 +378,6 @@ class FAISSSummaryIndex(IndexBuilder):
         # Load documents
         with open(path_obj / "documents.pkl", "rb") as f:
             self.documents = pickle.load(f)
-        
-        print(f"FAISS index loaded from {path}")
     
     def get_metadata(self) -> IndexMetadata:
         """Get metadata about this index."""
