@@ -93,7 +93,10 @@ class HybridSearchCLI:
         self.index_service: Optional[IndexService] = None
         self.legal_act = None
         self.act_iri = "https://opendata.eselpoint.cz/esel-esb/eli/cz/sb/2001/56/2025-07-01"
-        self.index_base_path = Path("demo_indexes")
+        
+        # Set index path to project root's data/indexes directory
+        project_root = Path(__file__).parent.parent
+        self.index_base_path = project_root / "data" / "indexes"
         
         # Configuration
         self.config = {
