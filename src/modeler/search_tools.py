@@ -2,6 +2,8 @@ from typing import List, Dict, Any
 from collections import defaultdict
 from pydantic import AnyUrl
 
+from agents import function_tool
+
 from legislation.datasource_esel import DataSourceESEL
 from legislation.service import LegislationService
 from legislation.domain import LegalAct, LegalStructuralElement
@@ -16,7 +18,7 @@ def _legislation_service() -> LegislationService:
 legislation_service = _legislation_service()
 
 
-#@function_tool
+@function_tool
 def get_seed_terms(legal_act_id: str, k: int = 10, normalize_case: bool = False) -> List[Dict[str, Any]]:
     """
     Returns K most frequently appearing terms (seed terms) from a legal act.
