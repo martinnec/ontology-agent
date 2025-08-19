@@ -92,7 +92,11 @@ class SearchService:
     def _load_indexes(self) -> None:
         """Load all available indexes for the legal act."""
         self._indexes = self.index_service.get_indexes(self.legal_act, force_rebuild=False)
-    
+
+    def get_legal_act_id(self) -> str:
+        """Get the ID of the legal act."""
+        return self.legal_act.id
+
     def search(self, query: str, strategy: SearchStrategy = SearchStrategy.HYBRID_SEMANTIC_FIRST,
                options: Optional[SearchOptions] = None) -> SearchResults:
         """
