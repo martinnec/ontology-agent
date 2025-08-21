@@ -40,7 +40,7 @@ class MockOntologyStore:
         # Test class
         test_class = OntologyClass(
             iri=URIRef("https://example.org/Vehicle"),
-            labels={"cs": "Vozidlo", "en": "Vehicle"},
+            prefLabels={"cs": "Vozidlo", "en": "Vehicle"},
             definitions={"cs": "Dopravní prostředek", "en": "Transportation device"},
             comments={"cs": "Poznámka", "en": "Comment"},
             parent_classes=[URIRef("https://example.org/MovableObject")],
@@ -55,7 +55,7 @@ class MockOntologyStore:
         # Test property
         test_property = OntologyProperty(
             iri=URIRef("https://example.org/hasOwner"),
-            labels={"cs": "má vlastníka", "en": "has owner"},
+            prefLabels={"cs": "má vlastníka", "en": "has owner"},
             definitions={"cs": "Vztah vlastnictví", "en": "Ownership relationship"},
             comments={},
             property_type="ObjectProperty",
@@ -239,7 +239,7 @@ def test_get_similar_classes_success():
     from .domain import OntologyClass
     car_class = OntologyClass(
         iri=URIRef("https://example.org/Car"),
-        labels={"cs": "Auto", "en": "Car"},
+        prefLabels={"cs": "Auto", "en": "Car"},
         definitions={"cs": "Osobní automobil"},
         comments={},
         parent_classes=[URIRef("https://example.org/Vehicle")],
@@ -430,7 +430,7 @@ def test_add_class():
         definition_cs="Test definice",
         comment_en="Test comment",
         comment_cs="Test komentar",
-        parent_class="https://example.org/ParentClass",
+        parent_class_iri="https://example.org/ParentClass",
         source_element="test_element"
     )
     assert result is True
@@ -526,7 +526,7 @@ def test_add_property():
         name_cs="testVlastnost",
         definition_en="Test property definition",
         definition_cs="Test definice vlastnosti",
-        domain="https://example.org/TestClass",
+        domain_iri="https://example.org/TestClass",
         range_iri="https://example.org/TestRange",
         source_element="test_element"
     )
@@ -538,7 +538,7 @@ def test_add_property():
         property_type="DatatypeProperty",
         name_en="testDataProperty",
         definition_en="Test data property",
-        domain="https://example.org/TestClass",
+        domain_iri="https://example.org/TestClass",
         range_iri="string"
     )
     assert result is True

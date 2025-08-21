@@ -215,7 +215,7 @@ class OntologyService:
                         "type": "class",
                         "iri": str(class_iri),
                         "score": float(similarity),
-                        "labels": ontology_class.labels,
+                        "prefLabels": ontology_class.prefLabels,
                         "definitions": ontology_class.definitions,
                         "additional_info": {
                             "parent_classes": [str(p) for p in ontology_class.parent_classes],
@@ -256,7 +256,7 @@ class OntologyService:
             score = 0.0
             
             # Check labels
-            for label in ontology_class.labels.values():
+            for label in ontology_class.prefLabels.values():
                 if concept_lower in label.lower():
                     score += 0.8  # High score for label match
                 elif any(word in label.lower() for word in concept_lower.split()):
@@ -274,7 +274,7 @@ class OntologyService:
                     "type": "class",
                     "iri": str(class_iri),
                     "score": min(score, 1.0),  # Cap at 1.0
-                    "labels": ontology_class.labels,
+                    "prefLabels": ontology_class.prefLabels,
                     "definitions": ontology_class.definitions,
                     "additional_info": {
                         "parent_classes": [str(p) for p in ontology_class.parent_classes],
@@ -311,7 +311,7 @@ class OntologyService:
             score = 0.0
             
             # Check labels
-            for label in ontology_property.labels.values():
+            for label in ontology_property.prefLabels.values():
                 if concept_lower in label.lower():
                     score += 0.8  # High score for label match
                 elif any(word in label.lower() for word in concept_lower.split()):
@@ -329,7 +329,7 @@ class OntologyService:
                     "type": "property",
                     "iri": str(prop_iri),
                     "score": min(score, 1.0),  # Cap at 1.0
-                    "labels": ontology_property.labels,
+                    "prefLabels": ontology_property.prefLabels,
                     "definitions": ontology_property.definitions,
                     "additional_info": {
                         "property_type": ontology_property.property_type,
@@ -349,7 +349,7 @@ class OntologyService:
                   definition_en: str = "",
                   comment_cs: str = "",
                   comment_en: str = "",
-                  parent_class: str = "",
+                  parent_class_iri: str = "",
                   source_element: str = "agent-extracted") -> bool:
         """Add a new class to the ontology.
         
@@ -361,7 +361,7 @@ class OntologyService:
             definition_en: English definition of the class
             comment_cs: Czech comment about the class
             comment_en: English comment about the class
-            parent_class: IRI of parent class (optional)
+            parent_class_iri: IRI of parent class (optional)
             source_element: Source reference for the class
             
         Returns:
@@ -407,13 +407,13 @@ class OntologyService:
             
             # Handle parent class
             parent_classes = []
-            if parent_class:
-                parent_classes.append(URIRef(parent_class))
+            if parent_class_iri:
+                parent_classes.append(URIRef(parent_class_iri))
             
             # Create ontology class
             ontology_class = OntologyClass(
                 iri=class_iri,
-                labels=labels,
+                prefLabels=labels,
                 definitions=definitions,
                 comments=comments,
                 parent_classes=parent_classes,
@@ -438,7 +438,7 @@ class OntologyService:
                      definition_en: str = None,
                      comment_cs: str = None,
                      comment_en: str = None,
-                     parent_class: str = None,
+                     parent_class_iri: str = None,
                      source_element: str = None) -> bool:
         """Update an existing class in the ontology.
         
@@ -450,7 +450,7 @@ class OntologyService:
             definition_en: English definition of the class (None = don't change)
             comment_cs: Czech comment about the class (None = don't change)
             comment_en: English comment about the class (None = don't change)
-            parent_class: IRI of parent class (None = don't change, "" = remove parent)
+            parent_class_iri: IRI of parent class (None = don't change, "" = remove parent)
             source_element: Source reference for the class (None = don't change)
             
         Returns:
@@ -466,7 +466,7 @@ class OntologyService:
                 return False
             
             # Update labels
-            labels = existing_class.labels.copy()
+            labels = existing_class.prefLabels.copy()
             if name_cs is not None:
                 if name_cs:
                     labels["cs"] = name_cs
@@ -506,10 +506,10 @@ class OntologyService:
             
             # Update parent class
             parent_classes = existing_class.parent_classes.copy()
-            if parent_class is not None:
+            if parent_class_iri is not None:
                 parent_classes = []
-                if parent_class:  # non-empty string
-                    parent_classes.append(URIRef(parent_class))
+                if parent_class_iri:  # non-empty string
+                    parent_classes.append(URIRef(parent_class_iri))
             
             # Update source elements
             source_elements = existing_class.source_elements.copy()
@@ -520,7 +520,7 @@ class OntologyService:
             # Create updated ontology class
             updated_class = OntologyClass(
                 iri=class_iri,
-                labels=labels,
+                prefLabels=labels,
                 definitions=definitions,
                 comments=comments,
                 parent_classes=parent_classes,
@@ -569,7 +569,7 @@ class OntologyService:
                      definition_en: str = "",
                      comment_cs: str = "",
                      comment_en: str = "",
-                     domain: str = "",
+                     domain_iri: str = "",
                      range_iri: str = "",
                      source_element: str = "agent-extracted") -> bool:
         """Add a new property to the ontology.
@@ -634,7 +634,7 @@ class OntologyService:
                 comments["en"] = comment_en
             
             # Handle domain and range
-            domain_uri = URIRef(domain) if domain else URIRef("")
+            domain_uri = URIRef(domain_iri) if domain_iri else URIRef("")
             
             # For datatype properties, handle XSD types
             if property_type == "DatatypeProperty" and range_iri and not range_iri.startswith("http"):
@@ -645,7 +645,7 @@ class OntologyService:
             # Create ontology property
             ontology_property = OntologyProperty(
                 iri=prop_iri,
-                labels=labels,
+                prefLabels=labels,
                 definitions=definitions,
                 comments=comments,
                 property_type=property_type,
@@ -669,7 +669,7 @@ class OntologyService:
                         definition_en: str = None,
                         comment_cs: str = None,
                         comment_en: str = None,
-                        domain: str = None,
+                        domain_iri: str = None,
                         range_iri: str = None,
                         source_element: str = None) -> bool:
         """Update an existing property in the ontology.
@@ -683,7 +683,7 @@ class OntologyService:
             definition_en: English definition of the property (None = don't change)
             comment_cs: Czech comment about the property (None = don't change)
             comment_en: English comment about the property (None = don't change)
-            domain: IRI of domain class (None = don't change, "" = remove domain)
+            domain_iri: IRI of domain class (None = don't change, "" = remove domain)
             range_iri: IRI of range class or datatype (None = don't change, "" = remove range)
             source_element: Source reference for the property (None = don't change)
             
@@ -706,7 +706,7 @@ class OntologyService:
                 return False
             
             # Update labels
-            labels = existing_property.labels.copy()
+            labels = existing_property.prefLabels.copy()
             if name_cs is not None:
                 if name_cs:
                     labels["cs"] = name_cs
@@ -746,8 +746,8 @@ class OntologyService:
             
             # Update domain
             updated_domain = existing_property.domain
-            if domain is not None:
-                updated_domain = URIRef(domain) if domain else URIRef("")
+            if domain_iri is not None:
+                updated_domain = URIRef(domain_iri) if domain_iri else URIRef("")
             
             # Update range
             updated_range = existing_property.range
@@ -769,7 +769,7 @@ class OntologyService:
             # Create updated ontology property
             updated_property = OntologyProperty(
                 iri=prop_iri,
-                labels=labels,
+                prefLabels=labels,
                 definitions=definitions,
                 comments=comments,
                 property_type=updated_property_type,
@@ -806,3 +806,77 @@ class OntologyService:
         except Exception as e:
             print(f"Error removing property: {e}")
             return False
+
+    def get_class_by_prefLabel(self, label: str, language: str = None) -> Optional[OntologyClass]:
+        """Find a class by its preferred label.
+        
+        Args:
+            label: The preferred label to search for
+            language: Language code ('cs' or 'en'). If None, searches all languages.
+            
+        Returns:
+            OntologyClass if found, None otherwise
+        """
+        try:
+            ontology = self.store.get_whole_ontology()
+            classes = ontology.get("classes", [])
+            
+            for class_info in classes:
+                class_iri = URIRef(class_info["iri"])
+                ontology_class = self.store.get_class(class_iri)
+                
+                if not ontology_class:
+                    continue
+                
+                # Check labels in specified language or all languages
+                if language:
+                    if language in ontology_class.prefLabels:
+                        if ontology_class.prefLabels[language].lower() == label.lower():
+                            return ontology_class
+                else:
+                    for lang, class_label in ontology_class.prefLabels.items():
+                        if class_label.lower() == label.lower():
+                            return ontology_class
+            
+            return None
+            
+        except Exception as e:
+            print(f"Error searching for class by label '{label}': {e}")
+            return None
+
+    def get_property_by_prefLabel(self, label: str, language: str = None) -> Optional[OntologyProperty]:
+        """Find a property by its preferred label.
+        
+        Args:
+            label: The preferred label to search for
+            language: Language code ('cs' or 'en'). If None, searches all languages.
+            
+        Returns:
+            OntologyProperty if found, None otherwise
+        """
+        try:
+            ontology = self.store.get_whole_ontology()
+            all_properties = ontology.get("object_properties", []) + ontology.get("datatype_properties", [])
+            
+            for prop_info in all_properties:
+                prop_iri = URIRef(prop_info["iri"])
+                ontology_property = self.store.get_property_details(prop_iri)
+                
+                if not ontology_property:
+                    continue
+                
+                # Check labels in specified language or all languages
+                if language:
+                    if language in ontology_property.prefLabels:
+                        if ontology_property.prefLabels[language].lower() == label.lower():
+                            return ontology_property
+                else:
+                    for lang, prop_label in ontology_property.prefLabels.items():
+                        if prop_label.lower() == label.lower():
+                            return ontology_property
+            
+            return None
+            
+        except Exception as e:
+            print(f"Error searching for property by label '{label}': {e}")
+            return None

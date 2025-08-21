@@ -15,7 +15,7 @@ class OntologyClass:
     """Represents a class in the ontology with all its properties and relationships."""
     
     iri: URIRef
-    labels: Dict[str, str]              # language -> label (e.g., {"cs": "Vozidlo", "en": "Vehicle"})
+    prefLabels: Dict[str, str]          # language -> label (e.g., {"cs": "Vozidlo", "en": "Vehicle"})
     definitions: Dict[str, str]         # language -> definition
     comments: Dict[str, str]            # language -> additional comments
     parent_classes: List[URIRef]        # parent classes (rdfs:subClassOf)
@@ -31,7 +31,7 @@ class OntologyProperty:
     """Represents a property (object or datatype) in the ontology."""
     
     iri: URIRef
-    labels: Dict[str, str]              # language -> label
+    prefLabels: Dict[str, str]              # language -> label
     definitions: Dict[str, str]         # language -> definition
     comments: Dict[str, str]            # language -> comments
     property_type: str                  # "ObjectProperty" | "DatatypeProperty"

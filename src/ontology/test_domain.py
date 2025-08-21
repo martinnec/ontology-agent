@@ -44,7 +44,7 @@ def test_ontology_class_creation():
     # Create OntologyClass instance
     ontology_class = OntologyClass(
         iri=iri,
-        labels=labels,
+        prefLabels=labels,
         definitions=definitions,
         comments=comments,
         parent_classes=parent_classes,
@@ -57,7 +57,7 @@ def test_ontology_class_creation():
     
     # Verify all properties are set correctly
     assert ontology_class.iri == iri
-    assert ontology_class.labels == labels
+    assert ontology_class.prefLabels == labels
     assert ontology_class.definitions == definitions
     assert ontology_class.comments == comments
     assert ontology_class.parent_classes == parent_classes
@@ -87,7 +87,7 @@ def test_ontology_property_creation():
     # Create OntologyProperty instance
     ontology_property = OntologyProperty(
         iri=iri,
-        labels=labels,
+        prefLabels=labels,
         definitions=definitions,
         comments=comments,
         property_type=property_type,
@@ -98,7 +98,7 @@ def test_ontology_property_creation():
     
     # Verify all properties are set correctly
     assert ontology_property.iri == iri
-    assert ontology_property.labels == labels
+    assert ontology_property.prefLabels == labels
     assert ontology_property.definitions == definitions
     assert ontology_property.comments == comments
     assert ontology_property.property_type == property_type
@@ -116,7 +116,7 @@ def test_datatype_property_creation():
     # Create datatype property
     ontology_property = OntologyProperty(
         iri=URIRef("https://example.org/hasWeight"),
-        labels={"cs": "má hmotnost", "en": "has weight"},
+        prefLabels={"cs": "má hmotnost", "en": "has weight"},
         definitions={"cs": "Hmotnost objektu", "en": "Weight of object"},
         comments={},
         property_type="DatatypeProperty",
@@ -139,7 +139,7 @@ def test_class_neighborhood_creation():
     # Create target class
     target_class = OntologyClass(
         iri=URIRef("https://example.org/Vehicle"),
-        labels={"cs": "Vozidlo"},
+        prefLabels={"cs": "Vozidlo"},
         definitions={},
         comments={},
         parent_classes=[],
@@ -153,7 +153,7 @@ def test_class_neighborhood_creation():
     # Create connected classes
     connected_class = OntologyClass(
         iri=URIRef("https://example.org/Person"),
-        labels={"cs": "Osoba"},
+        prefLabels={"cs": "Osoba"},
         definitions={},
         comments={},
         parent_classes=[],
@@ -167,7 +167,7 @@ def test_class_neighborhood_creation():
     # Create connecting property
     connecting_property = OntologyProperty(
         iri=URIRef("https://example.org/hasOwner"),
-        labels={"cs": "má vlastníka"},
+        prefLabels={"cs": "má vlastníka"},
         definitions={},
         comments={},
         property_type="ObjectProperty",
@@ -200,7 +200,7 @@ def test_similar_class_creation():
     # Create class info
     class_info = OntologyClass(
         iri=URIRef("https://example.org/Car"),
-        labels={"cs": "Auto", "en": "Car"},
+        prefLabels={"cs": "Auto", "en": "Car"},
         definitions={"cs": "Osobní automobil"},
         comments={},
         parent_classes=[URIRef("https://example.org/Vehicle")],
@@ -258,7 +258,7 @@ def test_empty_collections():
     # Test with empty collections
     minimal_class = OntologyClass(
         iri=URIRef("https://example.org/MinimalClass"),
-        labels={},
+        prefLabels={},
         definitions={},
         comments={},
         parent_classes=[],
@@ -270,13 +270,13 @@ def test_empty_collections():
     )
     
     # Verify empty collections are handled properly
-    assert len(minimal_class.labels) == 0
+    assert len(minimal_class.prefLabels) == 0
     assert len(minimal_class.parent_classes) == 0
     assert len(minimal_class.source_elements) == 0
     
     minimal_property = OntologyProperty(
         iri=URIRef("https://example.org/MinimalProperty"),
-        labels={},
+        prefLabels={},
         definitions={},
         comments={},
         property_type="ObjectProperty",
@@ -304,7 +304,7 @@ def test_uri_ref_handling():
     
     test_class = OntologyClass(
         iri=class_iri,
-        labels={"en": "Test Class"},
+        prefLabels={"en": "Test Class"},
         definitions={},
         comments={},
         parent_classes=[URIRef(base_uri + "ParentClass")],

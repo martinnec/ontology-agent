@@ -146,7 +146,7 @@ class OntologyStore:
         
         return OntologyClass(
             iri=class_iri,
-            labels=labels,
+            prefLabels=labels,
             definitions=definitions,
             comments=comments,
             parent_classes=parent_classes,
@@ -260,7 +260,7 @@ class OntologyStore:
         
         return OntologyProperty(
             iri=property_iri,
-            labels=labels,
+            prefLabels=labels,
             definitions=definitions,
             comments=comments,
             property_type=property_type,
@@ -306,7 +306,7 @@ class OntologyStore:
         
         if target_embedding is None:
             target_embedding = self.similarity_engine.compute_class_embedding(
-                target_class.labels,
+                target_class.prefLabels,
                 target_class.definitions,
                 target_class.comments
             )
@@ -350,7 +350,7 @@ class OntologyStore:
             self.working_graph.add((ontology_class.iri, RDF.type, OWL.Class))
             
             # Add labels
-            for lang, label in ontology_class.labels.items():
+            for lang, label in ontology_class.prefLabels.items():
                 self.working_graph.add((ontology_class.iri, self.skos.prefLabel, Literal(label, lang=lang)))
             
             # Add definitions
@@ -372,7 +372,7 @@ class OntologyStore:
             # Compute and cache embedding if possible
             if self.similarity_engine:
                 embedding = self.similarity_engine.compute_class_embedding(
-                    ontology_class.labels,
+                    ontology_class.prefLabels,
                     ontology_class.definitions,
                     ontology_class.comments
                 )
@@ -395,7 +395,7 @@ class OntologyStore:
                 self.working_graph.add((ontology_property.iri, RDF.type, OWL.DatatypeProperty))
             
             # Add labels
-            for lang, label in ontology_property.labels.items():
+            for lang, label in ontology_property.prefLabels.items():
                 self.working_graph.add((ontology_property.iri, self.skos.prefLabel, Literal(label, lang=lang)))
             
             # Add definitions
@@ -596,7 +596,7 @@ class OntologyStore:
             return None
         
         return self.similarity_engine.compute_class_embedding(
-            ontology_class.labels,
+            ontology_class.prefLabels,
             ontology_class.definitions,
             ontology_class.comments
         )
@@ -618,7 +618,7 @@ class OntologyStore:
             ontology_class = self.get_class(class_iri)
             if ontology_class:
                 embedding = self.similarity_engine.compute_class_embedding(
-                    ontology_class.labels,
+                    ontology_class.prefLabels,
                     ontology_class.definitions,
                     ontology_class.comments
                 )
@@ -647,7 +647,7 @@ class OntologyStore:
         ontology_class = self.get_class(class_iri)
         if ontology_class:
             embedding = self.similarity_engine.compute_class_embedding(
-                ontology_class.labels,
+                ontology_class.prefLabels,
                 ontology_class.definitions,
                 ontology_class.comments
             )
@@ -661,7 +661,7 @@ class OntologyStore:
         """Convert OntologyClass to dictionary representation."""
         return {
             "iri": str(ontology_class.iri),
-            "labels": ontology_class.labels,
+            "prefLabels": ontology_class.prefLabels,
             "definitions": ontology_class.definitions,
             "comments": ontology_class.comments,
             "parent_classes": [str(iri) for iri in ontology_class.parent_classes],
@@ -676,7 +676,7 @@ class OntologyStore:
         """Convert OntologyProperty to dictionary representation."""
         return {
             "iri": str(ontology_property.iri),
-            "labels": ontology_property.labels,
+            "prefLabels": ontology_property.prefLabels,
             "definitions": ontology_property.definitions,
             "comments": ontology_property.comments,
             "property_type": ontology_property.property_type,

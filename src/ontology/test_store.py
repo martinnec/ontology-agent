@@ -142,7 +142,7 @@ def test_embedding_computation():
     # Create a test class with textual content
     test_class = OntologyClass(
         iri=URIRef("https://example.org/ontology/Vehicle"),
-        labels={"cs": "Vozidlo", "en": "Vehicle"},
+        prefLabels={"cs": "Vozidlo", "en": "Vehicle"},
         definitions={"cs": "Dopravní prostředek pro přepravu osob nebo nákladu"},
         comments={"cs": "Silniční motorové vozidlo"},
         parent_classes=[],
@@ -174,7 +174,7 @@ def test_update_class():
     # Create and add a test class
     test_class = OntologyClass(
         iri=URIRef("https://example.org/UpdateTest"),
-        labels={"en": "Original Test Class"},
+        prefLabels={"en": "Original Test Class"},
         definitions={"en": "Original definition"},
         comments={},
         parent_classes=[],
@@ -192,7 +192,7 @@ def test_update_class():
     # Update the class
     updated_class = OntologyClass(
         iri=URIRef("https://example.org/UpdateTest"),
-        labels={"en": "Updated Test Class", "cs": "Aktualizovaná testovací třída"},
+        prefLabels={"en": "Updated Test Class", "cs": "Aktualizovaná testovací třída"},
         definitions={"en": "Updated definition", "cs": "Aktualizovaná definice"},
         comments={"en": "Updated comment"},
         parent_classes=[],
@@ -209,8 +209,8 @@ def test_update_class():
     # Verify the update
     retrieved_class = store.get_class(URIRef("https://example.org/UpdateTest"))
     assert retrieved_class is not None
-    assert retrieved_class.labels["en"] == "Updated Test Class"
-    assert retrieved_class.labels.get("cs") == "Aktualizovaná testovací třída"
+    assert retrieved_class.prefLabels["en"] == "Updated Test Class"
+    assert retrieved_class.prefLabels.get("cs") == "Aktualizovaná testovací třída"
     assert retrieved_class.definitions["en"] == "Updated definition"
     assert retrieved_class.comments.get("en") == "Updated comment"
     
@@ -226,7 +226,7 @@ def test_update_property():
     # Create and add a test property
     test_property = OntologyProperty(
         iri=URIRef("https://example.org/updateTestProperty"),
-        labels={"en": "original test property"},
+        prefLabels={"en": "original test property"},
         definitions={"en": "Original property definition"},
         comments={},
         property_type="ObjectProperty",
@@ -242,7 +242,7 @@ def test_update_property():
     # Update the property
     updated_property = OntologyProperty(
         iri=URIRef("https://example.org/updateTestProperty"),
-        labels={"en": "updated test property", "cs": "aktualizovaná testovací vlastnost"},
+        prefLabels={"en": "updated test property", "cs": "aktualizovaná testovací vlastnost"},
         definitions={"en": "Updated property definition", "cs": "Aktualizovaná definice vlastnosti"},
         comments={"en": "Updated comment"},
         property_type="ObjectProperty",
@@ -257,8 +257,8 @@ def test_update_property():
     # Verify the update
     retrieved_property = store.get_property_details(URIRef("https://example.org/updateTestProperty"))
     assert retrieved_property is not None
-    assert retrieved_property.labels["en"] == "updated test property"
-    assert retrieved_property.labels.get("cs") == "aktualizovaná testovací vlastnost"
+    assert retrieved_property.prefLabels["en"] == "updated test property"
+    assert retrieved_property.prefLabels.get("cs") == "aktualizovaná testovací vlastnost"
     assert retrieved_property.definitions["en"] == "Updated property definition"
     assert retrieved_property.domain == URIRef("https://example.org/UpdatedDomain")
     assert retrieved_property.range == URIRef("https://example.org/UpdatedRange")
@@ -275,7 +275,7 @@ def test_remove_class():
     # Create and add a test class
     test_class = OntologyClass(
         iri=URIRef("https://example.org/RemoveTest"),
-        labels={"en": "Remove Test Class"},
+        prefLabels={"en": "Remove Test Class"},
         definitions={"en": "Class to be removed"},
         comments={},
         parent_classes=[],
@@ -314,7 +314,7 @@ def test_remove_property():
     # Create and add a test property
     test_property = OntologyProperty(
         iri=URIRef("https://example.org/removeTestProperty"),
-        labels={"en": "remove test property"},
+        prefLabels={"en": "remove test property"},
         definitions={"en": "Property to be removed"},
         comments={},
         property_type="DatatypeProperty",
@@ -351,7 +351,7 @@ def test_update_nonexistent_class():
     # Try to update a class that doesn't exist
     nonexistent_class = OntologyClass(
         iri=URIRef("https://example.org/NonexistentClass"),
-        labels={"en": "Nonexistent Class"},
+        prefLabels={"en": "Nonexistent Class"},
         definitions={"en": "This class doesn't exist"},
         comments={},
         parent_classes=[],
