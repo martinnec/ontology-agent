@@ -165,6 +165,226 @@ def test_embedding_computation():
         print("✓ Embedding computation handled gracefully (no embedder available)")
 
 
+def test_update_class():
+    """Test updating existing class."""
+    print("Testing update_class...")
+    
+    store = OntologyStore()
+    
+    # Create and add a test class
+    test_class = OntologyClass(
+        iri=URIRef("https://example.org/UpdateTest"),
+        labels={"en": "Original Test Class"},
+        definitions={"en": "Original definition"},
+        comments={},
+        parent_classes=[],
+        subclasses=[],
+        datatype_properties=[],
+        object_properties_out=[],
+        object_properties_in=[],
+        source_elements=["original_source"]
+    )
+    
+    # Add the class
+    result = store.add_class(test_class)
+    assert result is True
+    
+    # Update the class
+    updated_class = OntologyClass(
+        iri=URIRef("https://example.org/UpdateTest"),
+        labels={"en": "Updated Test Class", "cs": "Aktualizovaná testovací třída"},
+        definitions={"en": "Updated definition", "cs": "Aktualizovaná definice"},
+        comments={"en": "Updated comment"},
+        parent_classes=[],
+        subclasses=[],
+        datatype_properties=[],
+        object_properties_out=[],
+        object_properties_in=[],
+        source_elements=["updated_source"]
+    )
+    
+    result = store.update_class(updated_class)
+    assert result is True
+    
+    # Verify the update
+    retrieved_class = store.get_class(URIRef("https://example.org/UpdateTest"))
+    assert retrieved_class is not None
+    assert retrieved_class.labels["en"] == "Updated Test Class"
+    assert retrieved_class.labels.get("cs") == "Aktualizovaná testovací třída"
+    assert retrieved_class.definitions["en"] == "Updated definition"
+    assert retrieved_class.comments.get("en") == "Updated comment"
+    
+    print("✓ update_class working correctly")
+
+
+def test_update_property():
+    """Test updating existing property."""
+    print("Testing update_property...")
+    
+    store = OntologyStore()
+    
+    # Create and add a test property
+    test_property = OntologyProperty(
+        iri=URIRef("https://example.org/updateTestProperty"),
+        labels={"en": "original test property"},
+        definitions={"en": "Original property definition"},
+        comments={},
+        property_type="ObjectProperty",
+        domain=URIRef("https://example.org/OriginalDomain"),
+        range=URIRef("https://example.org/OriginalRange"),
+        source_elements=["original_source"]
+    )
+    
+    # Add the property
+    result = store.add_property(test_property)
+    assert result is True
+    
+    # Update the property
+    updated_property = OntologyProperty(
+        iri=URIRef("https://example.org/updateTestProperty"),
+        labels={"en": "updated test property", "cs": "aktualizovaná testovací vlastnost"},
+        definitions={"en": "Updated property definition", "cs": "Aktualizovaná definice vlastnosti"},
+        comments={"en": "Updated comment"},
+        property_type="ObjectProperty",
+        domain=URIRef("https://example.org/UpdatedDomain"),
+        range=URIRef("https://example.org/UpdatedRange"),
+        source_elements=["updated_source"]
+    )
+    
+    result = store.update_property(updated_property)
+    assert result is True
+    
+    # Verify the update
+    retrieved_property = store.get_property_details(URIRef("https://example.org/updateTestProperty"))
+    assert retrieved_property is not None
+    assert retrieved_property.labels["en"] == "updated test property"
+    assert retrieved_property.labels.get("cs") == "aktualizovaná testovací vlastnost"
+    assert retrieved_property.definitions["en"] == "Updated property definition"
+    assert retrieved_property.domain == URIRef("https://example.org/UpdatedDomain")
+    assert retrieved_property.range == URIRef("https://example.org/UpdatedRange")
+    
+    print("✓ update_property working correctly")
+
+
+def test_remove_class():
+    """Test removing existing class."""
+    print("Testing remove_class...")
+    
+    store = OntologyStore()
+    
+    # Create and add a test class
+    test_class = OntologyClass(
+        iri=URIRef("https://example.org/RemoveTest"),
+        labels={"en": "Remove Test Class"},
+        definitions={"en": "Class to be removed"},
+        comments={},
+        parent_classes=[],
+        subclasses=[],
+        datatype_properties=[],
+        object_properties_out=[],
+        object_properties_in=[],
+        source_elements=["test_source"]
+    )
+    
+    # Add the class
+    result = store.add_class(test_class)
+    assert result is True
+    
+    # Verify it exists
+    retrieved_class = store.get_class(URIRef("https://example.org/RemoveTest"))
+    assert retrieved_class is not None
+    
+    # Remove the class
+    result = store.remove_class(URIRef("https://example.org/RemoveTest"))
+    assert result is True
+    
+    # Verify it's removed
+    removed_class = store.get_class(URIRef("https://example.org/RemoveTest"))
+    assert removed_class is None
+    
+    print("✓ remove_class working correctly")
+
+
+def test_remove_property():
+    """Test removing existing property."""
+    print("Testing remove_property...")
+    
+    store = OntologyStore()
+    
+    # Create and add a test property
+    test_property = OntologyProperty(
+        iri=URIRef("https://example.org/removeTestProperty"),
+        labels={"en": "remove test property"},
+        definitions={"en": "Property to be removed"},
+        comments={},
+        property_type="DatatypeProperty",
+        domain=URIRef("https://example.org/TestDomain"),
+        range=URIRef("http://www.w3.org/2001/XMLSchema#string"),
+        source_elements=["test_source"]
+    )
+    
+    # Add the property
+    result = store.add_property(test_property)
+    assert result is True
+    
+    # Verify it exists
+    retrieved_property = store.get_property_details(URIRef("https://example.org/removeTestProperty"))
+    assert retrieved_property is not None
+    
+    # Remove the property
+    result = store.remove_property(URIRef("https://example.org/removeTestProperty"))
+    assert result is True
+    
+    # Verify it's removed
+    removed_property = store.get_property_details(URIRef("https://example.org/removeTestProperty"))
+    assert removed_property is None
+    
+    print("✓ remove_property working correctly")
+
+
+def test_update_nonexistent_class():
+    """Test updating a class that doesn't exist."""
+    print("Testing update of nonexistent class...")
+    
+    store = OntologyStore()
+    
+    # Try to update a class that doesn't exist
+    nonexistent_class = OntologyClass(
+        iri=URIRef("https://example.org/NonexistentClass"),
+        labels={"en": "Nonexistent Class"},
+        definitions={"en": "This class doesn't exist"},
+        comments={},
+        parent_classes=[],
+        subclasses=[],
+        datatype_properties=[],
+        object_properties_out=[],
+        object_properties_in=[],
+        source_elements=["test_source"]
+    )
+    
+    result = store.update_class(nonexistent_class)
+    assert result is False
+    
+    print("✓ Update of nonexistent class handled correctly")
+
+
+def test_remove_nonexistent_elements():
+    """Test removing elements that don't exist."""
+    print("Testing remove of nonexistent elements...")
+    
+    store = OntologyStore()
+    
+    # Try to remove a class that doesn't exist
+    result = store.remove_class(URIRef("https://example.org/NonexistentClass"))
+    assert result is True  # Should succeed silently
+    
+    # Try to remove a property that doesn't exist
+    result = store.remove_property(URIRef("https://example.org/nonexistentProperty"))
+    assert result is True  # Should succeed silently
+    
+    print("✓ Remove of nonexistent elements handled correctly")
+
+
 def run_all_tests():
     """Run all test functions."""
     print("=" * 50)
@@ -178,7 +398,13 @@ def run_all_tests():
         test_class_operations_placeholder,
         test_property_operations_placeholder,
         test_similarity_operations_placeholder,
-        test_embedding_computation
+        test_embedding_computation,
+        test_update_class,
+        test_update_property,
+        test_remove_class,
+        test_remove_property,
+        test_update_nonexistent_class,
+        test_remove_nonexistent_elements
     ]
     
     passed = 0

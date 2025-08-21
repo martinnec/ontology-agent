@@ -424,6 +424,129 @@ class OntologyStore:
             print(f"Error adding property {ontology_property.iri}: {e}")
             return False
     
+    def update_class(self, ontology_class: OntologyClass) -> bool:
+        """Update existing class in working graph.
+        
+        This removes all existing triples for the class and adds the new ones.
+        
+        Args:
+            ontology_class: Updated class information
+            
+        Returns:
+            True if successfully updated, False otherwise
+        """
+        try:
+            # Check if class exists first
+            existing_class = self.get_class(ontology_class.iri)
+            if not existing_class:
+                return False
+            
+            # First remove existing class data
+            if not self.remove_class(ontology_class.iri):
+                return False
+            
+            # Then add the updated class
+            return self.add_class(ontology_class)
+            
+        except Exception as e:
+            print(f"Error updating class {ontology_class.iri}: {e}")
+            return False
+    
+    def update_property(self, ontology_property: OntologyProperty) -> bool:
+        """Update existing property in working graph.
+        
+        This removes all existing triples for the property and adds the new ones.
+        
+        Args:
+            ontology_property: Updated property information
+            
+        Returns:
+            True if successfully updated, False otherwise
+        """
+        try:
+            # Check if property exists first
+            existing_property = self.get_property_details(ontology_property.iri)
+            if not existing_property:
+                return False
+            
+            # First remove existing property data
+            if not self.remove_property(ontology_property.iri):
+                return False
+            
+            # Then add the updated property
+            return self.add_property(ontology_property)
+            
+        except Exception as e:
+            print(f"Error updating property {ontology_property.iri}: {e}")
+            return False
+    
+    def remove_class(self, class_iri: URIRef) -> bool:
+        """Remove class and all its related triples from working graph.
+        
+        Args:
+            class_iri: IRI of the class to remove
+            
+        Returns:
+            True if successfully removed, False otherwise
+        """
+        try:
+            # Remove all triples where this class is the subject
+            triples_to_remove = list(self.working_graph.triples((class_iri, None, None)))
+            for triple in triples_to_remove:
+                self.working_graph.remove(triple)
+            
+            # Remove all triples where this class is the object (e.g., subclass relationships)
+            triples_to_remove = list(self.working_graph.triples((None, None, class_iri)))
+            for triple in triples_to_remove:
+                self.working_graph.remove(triple)
+            
+            # Remove cached embedding if it exists
+            class_iri_str = str(class_iri)
+            if class_iri_str in self.class_embeddings:
+                del self.class_embeddings[class_iri_str]
+            
+            return True
+            
+        except Exception as e:
+            print(f"Error removing class {class_iri}: {e}")
+            return False
+    
+    def remove_property(self, property_iri: URIRef) -> bool:
+        """Remove property and all its related triples from working graph.
+        
+        Args:
+            property_iri: IRI of the property to remove
+            
+        Returns:
+            True if successfully removed, False otherwise
+        """
+        try:
+            # Remove all triples where this property is the subject
+            triples_to_remove = list(self.working_graph.triples((property_iri, None, None)))
+            for triple in triples_to_remove:
+                self.working_graph.remove(triple)
+            
+            # Remove all triples where this property is the predicate
+            triples_to_remove = list(self.working_graph.triples((None, property_iri, None)))
+            for triple in triples_to_remove:
+                self.working_graph.remove(triple)
+            
+            # Remove all triples where this property is the object
+            triples_to_remove = list(self.working_graph.triples((None, None, property_iri)))
+            for triple in triples_to_remove:
+                self.working_graph.remove(triple)
+            
+            # Remove cached embedding if it exists
+            property_iri_str = str(property_iri)
+            if property_iri_str in self.property_embeddings:
+                del self.property_embeddings[property_iri_str]
+            
+            return True
+            
+        except Exception as e:
+            print(f"Error removing property {property_iri}: {e}")
+            return False
+    
     def _get_ontology_stats(self) -> OntologyStats:
         """Get basic statistics about the ontology."""
         # Count triples by type in working graph

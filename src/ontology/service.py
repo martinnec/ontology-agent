@@ -341,116 +341,74 @@ class OntologyService:
         
         return results
     
-    def add_extraction_results(self, extracted_concepts: List[Dict[str, Any]]) -> bool:
-        """Add LLM-extracted concepts as simple classes/properties.
+    def add_class(self, 
+                  iri: str,
+                  name_cs: str = "", 
+                  name_en: str = "",
+                  definition_cs: str = "",
+                  definition_en: str = "",
+                  comment_cs: str = "",
+                  comment_en: str = "",
+                  parent_class: str = "",
+                  source_element: str = "agent-extracted") -> bool:
+        """Add a new class to the ontology.
         
         Args:
-            extracted_concepts: List of extracted concept dictionaries from LLM
-                Expected format for classes:
-                {
-                    "type": "class",
-                    "name_cs": "Czech name",
-                    "name_en": "English name", 
-                    "definition_cs": "Czech definition",
-                    "definition_en": "English definition",
-                    "comment_cs": "Czech comment",
-                    "comment_en": "English comment",
-                    "parent_class": "parent_iri_or_null",
-                    "source_element": "source_reference"
-                }
-                Expected format for properties:
-                {
-                    "type": "property",
-                    "property_type": "ObjectProperty|DatatypeProperty", 
-                    "name_cs": "Czech name",
-                    "name_en": "English name",
-                    "definition_cs": "Czech definition", 
-                    "definition_en": "English definition",
-                    "comment_cs": "Czech comment",
-                    "comment_en": "English comment",
-                    "domain": "domain_class_iri",
-                    "range": "range_class_or_datatype_iri",
-                    "source_element": "source_reference"
-                }
+            iri: IRI for the class (if empty, will be generated from name_en or name_cs)
+            name_cs: Czech name/label for the class
+            name_en: English name/label for the class
+            definition_cs: Czech definition of the class
+            definition_en: English definition of the class
+            comment_cs: Czech comment about the class
+            comment_en: English comment about the class
+            parent_class: IRI of parent class (optional)
+            source_element: Source reference for the class
             
         Returns:
             True if successfully added, False otherwise
         """
         try:
-            added_count = 0
+            # Generate IRI if not provided
+            if not iri:
+                name = name_en or name_cs
+                if not name:
+                    print("Error: Must provide either iri or at least one name (name_en/name_cs)")
+                    return False
+                clean_name = "".join(c for c in name if c.isalnum())
+                iri = f"https://example.org/ontology/{clean_name}"
             
-            for concept in extracted_concepts:
-                concept_type = concept.get("type", "").lower()
-                
-                if concept_type == "class":
-                    success = self._add_extracted_class(concept)
-                    if success:
-                        added_count += 1
-                elif concept_type == "property":
-                    success = self._add_extracted_property(concept)
-                    if success:
-                        added_count += 1
-                else:
-                    print(f"Warning: Unknown concept type '{concept_type}', skipping")
-                    continue
-            
-            print(f"Successfully added {added_count}/{len(extracted_concepts)} extracted concepts")
-            return added_count > 0
-            
-        except Exception as e:
-            print(f"Error adding extraction results: {e}")
-            return False
-    
-    def _add_extracted_class(self, concept: Dict[str, Any]) -> bool:
-        """Add a single extracted class to the ontology.
-        
-        Args:
-            concept: Dictionary containing class information
-            
-        Returns:
-            True if successfully added, False otherwise
-        """
-        try:
-            # Generate IRI from name
-            name_en = concept.get("name_en", concept.get("name_cs", ""))
-            if not name_en:
-                print("Error: Class must have at least name_en or name_cs")
-                return False
-                
-            # Create a clean IRI from the name
-            clean_name = "".join(c for c in name_en if c.isalnum())
-            class_iri = URIRef(f"https://example.org/ontology/{clean_name}")
+            class_iri = URIRef(iri)
             
             # Check if class already exists
             if self.store.get_class(class_iri):
-                print(f"Class {class_iri} already exists, skipping")
+                print(f"Class {iri} already exists")
                 return False
             
             # Build labels
             labels = {}
-            if concept.get("name_cs"):
-                labels["cs"] = concept["name_cs"]
-            if concept.get("name_en"):
-                labels["en"] = concept["name_en"]
+            if name_cs:
+                labels["cs"] = name_cs
+            if name_en:
+                labels["en"] = name_en
             
             # Build definitions
             definitions = {}
-            if concept.get("definition_cs"):
-                definitions["cs"] = concept["definition_cs"]
-            if concept.get("definition_en"):
-                definitions["en"] = concept["definition_en"]
+            if definition_cs:
+                definitions["cs"] = definition_cs
+            if definition_en:
+                definitions["en"] = definition_en
             
             # Build comments
             comments = {}
-            if concept.get("comment_cs"):
-                comments["cs"] = concept["comment_cs"]
-            if concept.get("comment_en"):
-                comments["en"] = concept["comment_en"]
+            if comment_cs:
+                comments["cs"] = comment_cs
+            if comment_en:
+                comments["en"] = comment_en
             
             # Handle parent class
             parent_classes = []
-            if concept.get("parent_class"):
-                parent_classes.append(URIRef(concept["parent_class"]))
+            if parent_class:
+                parent_classes.append(URIRef(parent_class))
             
             # Create ontology class
             ontology_class = OntologyClass(
@@ -463,77 +421,226 @@ class OntologyService:
                 datatype_properties=[],
                 object_properties_out=[],
                 object_properties_in=[],
-                source_elements=[concept.get("source_element", "llm-extraction")]
+                source_elements=[source_element]
             )
             
-            # Add to store
             return self.store.add_class(ontology_class)
             
         except Exception as e:
-            print(f"Error adding extracted class: {e}")
+            print(f"Error adding class: {e}")
             return False
-    
-    def _add_extracted_property(self, concept: Dict[str, Any]) -> bool:
-        """Add a single extracted property to the ontology.
+
+    def update_class(self,
+                     iri: str,
+                     name_cs: str = None, 
+                     name_en: str = None,
+                     definition_cs: str = None,
+                     definition_en: str = None,
+                     comment_cs: str = None,
+                     comment_en: str = None,
+                     parent_class: str = None,
+                     source_element: str = None) -> bool:
+        """Update an existing class in the ontology.
         
         Args:
-            concept: Dictionary containing property information
+            iri: IRI of the class to update
+            name_cs: Czech name/label for the class (None = don't change)
+            name_en: English name/label for the class (None = don't change)
+            definition_cs: Czech definition of the class (None = don't change)
+            definition_en: English definition of the class (None = don't change)
+            comment_cs: Czech comment about the class (None = don't change)
+            comment_en: English comment about the class (None = don't change)
+            parent_class: IRI of parent class (None = don't change, "" = remove parent)
+            source_element: Source reference for the class (None = don't change)
+            
+        Returns:
+            True if successfully updated, False otherwise
+        """
+        try:
+            class_iri = URIRef(iri)
+            
+            # Check if class exists
+            existing_class = self.store.get_class(class_iri)
+            if not existing_class:
+                print(f"Class {iri} does not exist")
+                return False
+            
+            # Update labels
+            labels = existing_class.labels.copy()
+            if name_cs is not None:
+                if name_cs:
+                    labels["cs"] = name_cs
+                elif "cs" in labels:
+                    del labels["cs"]
+            if name_en is not None:
+                if name_en:
+                    labels["en"] = name_en
+                elif "en" in labels:
+                    del labels["en"]
+            
+            # Update definitions
+            definitions = existing_class.definitions.copy()
+            if definition_cs is not None:
+                if definition_cs:
+                    definitions["cs"] = definition_cs
+                elif "cs" in definitions:
+                    del definitions["cs"]
+            if definition_en is not None:
+                if definition_en:
+                    definitions["en"] = definition_en
+                elif "en" in definitions:
+                    del definitions["en"]
+            
+            # Update comments
+            comments = existing_class.comments.copy()
+            if comment_cs is not None:
+                if comment_cs:
+                    comments["cs"] = comment_cs
+                elif "cs" in comments:
+                    del comments["cs"]
+            if comment_en is not None:
+                if comment_en:
+                    comments["en"] = comment_en
+                elif "en" in comments:
+                    del comments["en"]
+            
+            # Update parent class
+            parent_classes = existing_class.parent_classes.copy()
+            if parent_class is not None:
+                parent_classes = []
+                if parent_class:  # non-empty string
+                    parent_classes.append(URIRef(parent_class))
+            
+            # Update source elements
+            source_elements = existing_class.source_elements.copy()
+            if source_element is not None:
+                if source_element not in source_elements:
+                    source_elements.append(source_element)
+            
+            # Create updated ontology class
+            updated_class = OntologyClass(
+                iri=class_iri,
+                labels=labels,
+                definitions=definitions,
+                comments=comments,
+                parent_classes=parent_classes,
+                subclasses=existing_class.subclasses,
+                datatype_properties=existing_class.datatype_properties,
+                object_properties_out=existing_class.object_properties_out,
+                object_properties_in=existing_class.object_properties_in,
+                source_elements=source_elements
+            )
+            
+            return self.store.update_class(updated_class)
+            
+        except Exception as e:
+            print(f"Error updating class: {e}")
+            return False
+
+    def remove_class(self, iri: str) -> bool:
+        """Remove a class from the ontology.
+        
+        Args:
+            iri: IRI of the class to remove
+            
+        Returns:
+            True if successfully removed, False otherwise
+        """
+        try:
+            class_iri = URIRef(iri)
+            
+            # Check if class exists
+            if not self.store.get_class(class_iri):
+                print(f"Class {iri} does not exist")
+                return False
+            
+            return self.store.remove_class(class_iri)
+            
+        except Exception as e:
+            print(f"Error removing class: {e}")
+            return False
+
+    def add_property(self,
+                     iri: str,
+                     property_type: str,
+                     name_cs: str = "", 
+                     name_en: str = "",
+                     definition_cs: str = "",
+                     definition_en: str = "",
+                     comment_cs: str = "",
+                     comment_en: str = "",
+                     domain: str = "",
+                     range_iri: str = "",
+                     source_element: str = "agent-extracted") -> bool:
+        """Add a new property to the ontology.
+        
+        Args:
+            iri: IRI for the property (if empty, will be generated from name_en or name_cs)
+            property_type: "ObjectProperty" or "DatatypeProperty"
+            name_cs: Czech name/label for the property
+            name_en: English name/label for the property
+            definition_cs: Czech definition of the property
+            definition_en: English definition of the property
+            comment_cs: Czech comment about the property
+            comment_en: English comment about the property
+            domain: IRI of domain class
+            range_iri: IRI of range class or datatype
+            source_element: Source reference for the property
             
         Returns:
             True if successfully added, False otherwise
         """
         try:
-            # Generate IRI from name
-            name_en = concept.get("name_en", concept.get("name_cs", ""))
-            if not name_en:
-                print("Error: Property must have at least name_en or name_cs")
+            # Validate property type
+            if property_type not in ["ObjectProperty", "DatatypeProperty"]:
+                print(f"Error: Invalid property type '{property_type}'. Must be 'ObjectProperty' or 'DatatypeProperty'")
                 return False
-                
-            # Create a clean IRI from the name
-            clean_name = "".join(c for c in name_en if c.isalnum())
-            prop_iri = URIRef(f"https://example.org/ontology/{clean_name}")
+            
+            # Generate IRI if not provided
+            if not iri:
+                name = name_en or name_cs
+                if not name:
+                    print("Error: Must provide either iri or at least one name (name_en/name_cs)")
+                    return False
+                clean_name = "".join(c for c in name if c.isalnum())
+                iri = f"https://example.org/ontology/{clean_name}"
+            
+            prop_iri = URIRef(iri)
             
             # Check if property already exists
             if self.store.get_property_details(prop_iri):
-                print(f"Property {prop_iri} already exists, skipping")
-                return False
-            
-            # Validate property type
-            property_type = concept.get("property_type", "")
-            if property_type not in ["ObjectProperty", "DatatypeProperty"]:
-                print(f"Error: Invalid property type '{property_type}'")
+                print(f"Property {iri} already exists")
                 return False
             
             # Build labels
             labels = {}
-            if concept.get("name_cs"):
-                labels["cs"] = concept["name_cs"]
-            if concept.get("name_en"):
-                labels["en"] = concept["name_en"]
+            if name_cs:
+                labels["cs"] = name_cs
+            if name_en:
+                labels["en"] = name_en
             
             # Build definitions
             definitions = {}
-            if concept.get("definition_cs"):
-                definitions["cs"] = concept["definition_cs"]
-            if concept.get("definition_en"):
-                definitions["en"] = concept["definition_en"]
+            if definition_cs:
+                definitions["cs"] = definition_cs
+            if definition_en:
+                definitions["en"] = definition_en
             
             # Build comments
             comments = {}
-            if concept.get("comment_cs"):
-                comments["cs"] = concept["comment_cs"]
-            if concept.get("comment_en"):
-                comments["en"] = concept["comment_en"]
+            if comment_cs:
+                comments["cs"] = comment_cs
+            if comment_en:
+                comments["en"] = comment_en
             
             # Handle domain and range
-            domain = URIRef(concept.get("domain", ""))
-            range_uri = concept.get("range", "")
+            domain_uri = URIRef(domain) if domain else URIRef("")
             
-            # For datatype properties, range might be XSD type
-            if property_type == "DatatypeProperty" and not range_uri.startswith("http"):
-                range_uri = f"http://www.w3.org/2001/XMLSchema#{range_uri}"
+            # For datatype properties, handle XSD types
+            if property_type == "DatatypeProperty" and range_iri and not range_iri.startswith("http"):
+                range_iri = f"http://www.w3.org/2001/XMLSchema#{range_iri}"
             
-            range_ref = URIRef(range_uri)
+            range_uri = URIRef(range_iri) if range_iri else URIRef("")
             
             # Create ontology property
             ontology_property = OntologyProperty(
@@ -542,14 +649,160 @@ class OntologyService:
                 definitions=definitions,
                 comments=comments,
                 property_type=property_type,
-                domain=domain,
-                range=range_ref,
-                source_elements=[concept.get("source_element", "llm-extraction")]
+                domain=domain_uri,
+                range=range_uri,
+                source_elements=[source_element]
             )
             
-            # Add to store
             return self.store.add_property(ontology_property)
             
         except Exception as e:
-            print(f"Error adding extracted property: {e}")
+            print(f"Error adding property: {e}")
+            return False
+
+    def update_property(self,
+                        iri: str,
+                        property_type: str = None,
+                        name_cs: str = None, 
+                        name_en: str = None,
+                        definition_cs: str = None,
+                        definition_en: str = None,
+                        comment_cs: str = None,
+                        comment_en: str = None,
+                        domain: str = None,
+                        range_iri: str = None,
+                        source_element: str = None) -> bool:
+        """Update an existing property in the ontology.
+        
+        Args:
+            iri: IRI of the property to update
+            property_type: "ObjectProperty" or "DatatypeProperty" (None = don't change)
+            name_cs: Czech name/label for the property (None = don't change)
+            name_en: English name/label for the property (None = don't change)
+            definition_cs: Czech definition of the property (None = don't change)
+            definition_en: English definition of the property (None = don't change)
+            comment_cs: Czech comment about the property (None = don't change)
+            comment_en: English comment about the property (None = don't change)
+            domain: IRI of domain class (None = don't change, "" = remove domain)
+            range_iri: IRI of range class or datatype (None = don't change, "" = remove range)
+            source_element: Source reference for the property (None = don't change)
+            
+        Returns:
+            True if successfully updated, False otherwise
+        """
+        try:
+            prop_iri = URIRef(iri)
+            
+            # Check if property exists
+            existing_property = self.store.get_property_details(prop_iri)
+            if not existing_property:
+                print(f"Property {iri} does not exist")
+                return False
+            
+            # Validate property type if provided
+            updated_property_type = property_type or existing_property.property_type
+            if updated_property_type not in ["ObjectProperty", "DatatypeProperty"]:
+                print(f"Error: Invalid property type '{updated_property_type}'")
+                return False
+            
+            # Update labels
+            labels = existing_property.labels.copy()
+            if name_cs is not None:
+                if name_cs:
+                    labels["cs"] = name_cs
+                elif "cs" in labels:
+                    del labels["cs"]
+            if name_en is not None:
+                if name_en:
+                    labels["en"] = name_en
+                elif "en" in labels:
+                    del labels["en"]
+            
+            # Update definitions
+            definitions = existing_property.definitions.copy()
+            if definition_cs is not None:
+                if definition_cs:
+                    definitions["cs"] = definition_cs
+                elif "cs" in definitions:
+                    del definitions["cs"]
+            if definition_en is not None:
+                if definition_en:
+                    definitions["en"] = definition_en
+                elif "en" in definitions:
+                    del definitions["en"]
+            
+            # Update comments
+            comments = existing_property.comments.copy()
+            if comment_cs is not None:
+                if comment_cs:
+                    comments["cs"] = comment_cs
+                elif "cs" in comments:
+                    del comments["cs"]
+            if comment_en is not None:
+                if comment_en:
+                    comments["en"] = comment_en
+                elif "en" in comments:
+                    del comments["en"]
+            
+            # Update domain
+            updated_domain = existing_property.domain
+            if domain is not None:
+                updated_domain = URIRef(domain) if domain else URIRef("")
+            
+            # Update range
+            updated_range = existing_property.range
+            if range_iri is not None:
+                if range_iri:
+                    # For datatype properties, handle XSD types
+                    if updated_property_type == "DatatypeProperty" and not range_iri.startswith("http"):
+                        range_iri = f"http://www.w3.org/2001/XMLSchema#{range_iri}"
+                    updated_range = URIRef(range_iri)
+                else:
+                    updated_range = URIRef("")
+            
+            # Update source elements
+            source_elements = existing_property.source_elements.copy()
+            if source_element is not None:
+                if source_element not in source_elements:
+                    source_elements.append(source_element)
+            
+            # Create updated ontology property
+            updated_property = OntologyProperty(
+                iri=prop_iri,
+                labels=labels,
+                definitions=definitions,
+                comments=comments,
+                property_type=updated_property_type,
+                domain=updated_domain,
+                range=updated_range,
+                source_elements=source_elements
+            )
+            
+            return self.store.update_property(updated_property)
+            
+        except Exception as e:
+            print(f"Error updating property: {e}")
+            return False
+
+    def remove_property(self, iri: str) -> bool:
+        """Remove a property from the ontology.
+        
+        Args:
+            iri: IRI of the property to remove
+            
+        Returns:
+            True if successfully removed, False otherwise
+        """
+        try:
+            prop_iri = URIRef(iri)
+            
+            # Check if property exists
+            if not self.store.get_property_details(prop_iri):
+                print(f"Property {iri} does not exist")
+                return False
+            
+            return self.store.remove_property(prop_iri)
+            
+        except Exception as e:
+            print(f"Error removing property: {e}")
             return False

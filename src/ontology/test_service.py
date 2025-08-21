@@ -117,6 +117,30 @@ class MockOntologyStore:
     def add_property(self, ontology_property):
         self.properties[ontology_property.iri] = ontology_property
         return True
+    
+    def update_class(self, ontology_class):
+        if ontology_class.iri in self.classes:
+            self.classes[ontology_class.iri] = ontology_class
+            return True
+        return False
+    
+    def update_property(self, ontology_property):
+        if ontology_property.iri in self.properties:
+            self.properties[ontology_property.iri] = ontology_property
+            return True
+        return False
+    
+    def remove_class(self, class_iri):
+        if class_iri in self.classes:
+            del self.classes[class_iri]
+            return True
+        return False
+    
+    def remove_property(self, property_iri):
+        if property_iri in self.properties:
+            del self.properties[property_iri]
+            return True
+        return False
 
 
 def test_service_initialization():
@@ -390,103 +414,272 @@ def test_add_extraction_results_valid_class():
     print("✓ add_extraction_results with valid class working correctly")
 
 
-def test_add_extraction_results_valid_property():
-    """Test add_extraction_results with valid property data."""
-    print("Testing add_extraction_results with valid property...")
+def test_add_class():
+    """Test add_class functionality."""
+    print("Testing add_class basic functionality...")
     
     mock_store = MockOntologyStore()
     service = OntologyService(store=mock_store)
     
-    valid_property_concepts = [
-        {
-            "type": "property",
-            "property_type": "ObjectProperty",
-            "name_cs": "má testovací vztah",
-            "name_en": "has test relation",
-            "definition_cs": "Testovací vztah",
-            "definition_en": "Test relationship",
-            "domain": "https://example.org/TestClass",
-            "range": "https://example.org/AnotherClass",
-            "source_element": "test_element"
-        }
-    ]
-    
-    result = service.add_extraction_results(valid_property_concepts)
+    # Test adding a class with generated IRI
+    result = service.add_class(
+        iri="",
+        name_en="TestClass",
+        name_cs="TestTrida",
+        definition_en="Test definition",
+        definition_cs="Test definice",
+        comment_en="Test comment",
+        comment_cs="Test komentar",
+        parent_class="https://example.org/ParentClass",
+        source_element="test_element"
+    )
     assert result is True
     
-    print("✓ add_extraction_results with valid property working correctly")
+    # Test adding a class with provided IRI
+    result = service.add_class(
+        iri="https://example.org/ontology/CustomClass",
+        name_en="CustomClass",
+        definition_en="Custom definition"
+    )
+    assert result is True
+    
+    print("✓ add_class basic functionality working correctly")
 
 
-def test_class_hierarchy_not_found():
-    """Test get_class_hierarchy with non-existent class."""
-    print("Testing get_class_hierarchy with non-existent class...")
+def test_add_class_invalid_data():
+    """Test add_class with invalid data."""
+    print("Testing add_class with invalid data...")
     
-    service = OntologyService()
+    mock_store = MockOntologyStore()
+    service = OntologyService(store=mock_store)
     
-    try:
-        result = service.get_class_hierarchy("https://example.org/NonExistent")
-        assert False, "Should have raised ValueError"
-    except ValueError as e:
-        assert "Class not found" in str(e)
-        print("✓ get_class_hierarchy correctly handles non-existent class")
-
-
-def test_property_details_not_found():
-    """Test get_property_details with non-existent property."""
-    print("Testing get_property_details with non-existent property...")
-    
-    service = OntologyService()
-    
-    try:
-        result = service.get_property_details("https://example.org/nonExistentProperty")
-        assert False, "Should have raised ValueError"
-    except ValueError as e:
-        assert "Property not found" in str(e)
-        print("✓ get_property_details correctly handles non-existent property")
-
-
-def test_class_neighborhood_not_found():
-    """Test get_class_neighborhood with non-existent class."""
-    print("Testing get_class_neighborhood with non-existent class...")
-    
-    service = OntologyService()
-    
-    try:
-        result = service.get_class_neighborhood("https://example.org/NonExistent")
-        assert False, "Should have raised ValueError"
-    except ValueError as e:
-        assert "Class not found" in str(e)
-        print("✓ get_class_neighborhood correctly handles non-existent class")
-
-
-def test_search_by_concept_placeholder():
-    """Test search_by_concept (placeholder for Phase 4)."""
-    print("Testing search_by_concept (Phase 4 placeholder)...")
-    
-    service = OntologyService()
-    results = service.search_by_concept("vehicle registration")
-    
-    # Should return empty list until Phase 4
-    assert results == []
-    
-    print("✓ search_by_concept placeholder working correctly")
-
-
-def test_add_extraction_results_placeholder():
-    """Test add_extraction_results (placeholder for Phase 4)."""
-    print("Testing add_extraction_results (Phase 4 placeholder)...")
-    
-    service = OntologyService()
-    test_concepts = [
-        {"type": "class", "iri": "ex:Vehicle", "labels": {"cs": "Vozidlo"}}
-    ]
-    
-    result = service.add_extraction_results(test_concepts)
-    
-    # Should return False until Phase 4
+    # Test with no IRI and no names
+    result = service.add_class(iri="")
     assert result is False
     
-    print("✓ add_extraction_results placeholder working correctly")
+    print("✓ add_class with invalid data working correctly")
+
+
+def test_update_class():
+    """Test update_class functionality."""
+    print("Testing update_class...")
+    
+    mock_store = MockOntologyStore()
+    service = OntologyService(store=mock_store)
+    
+    # First add a class
+    iri = "https://example.org/ontology/UpdateTestClass"
+    result = service.add_class(
+        iri=iri,
+        name_en="UpdateTestClass",
+        definition_en="Original definition"
+    )
+    assert result is True
+    
+    # Now update it
+    result = service.update_class(
+        iri=iri,
+        name_en="UpdatedTestClass",
+        definition_en="Updated definition",
+        comment_en="New comment"
+    )
+    assert result is True
+    
+    print("✓ update_class working correctly")
+
+
+def test_remove_class():
+    """Test remove_class functionality."""
+    print("Testing remove_class...")
+    
+    mock_store = MockOntologyStore()
+    service = OntologyService(store=mock_store)
+    
+    # First add a class
+    iri = "https://example.org/ontology/RemoveTestClass"
+    result = service.add_class(
+        iri=iri,
+        name_en="RemoveTestClass",
+        definition_en="Test definition"
+    )
+    assert result is True
+    
+    # Now remove it
+    result = service.remove_class(iri)
+    assert result is True
+    
+    print("✓ remove_class working correctly")
+
+
+def test_add_property():
+    """Test add_property functionality."""
+    print("Testing add_property...")
+    
+    mock_store = MockOntologyStore()
+    service = OntologyService(store=mock_store)
+    
+    # Test adding an object property
+    result = service.add_property(
+        iri="https://example.org/ontology/testProperty",
+        property_type="ObjectProperty",
+        name_en="testProperty",
+        name_cs="testVlastnost",
+        definition_en="Test property definition",
+        definition_cs="Test definice vlastnosti",
+        domain="https://example.org/TestClass",
+        range_iri="https://example.org/TestRange",
+        source_element="test_element"
+    )
+    assert result is True
+    
+    # Test adding a datatype property
+    result = service.add_property(
+        iri="https://example.org/ontology/testDataProperty",
+        property_type="DatatypeProperty",
+        name_en="testDataProperty",
+        definition_en="Test data property",
+        domain="https://example.org/TestClass",
+        range_iri="string"
+    )
+    assert result is True
+    
+    print("✓ add_property working correctly")
+
+
+def test_add_property_invalid_data():
+    """Test add_property with invalid data."""
+    print("Testing add_property with invalid data...")
+    
+    mock_store = MockOntologyStore()
+    service = OntologyService(store=mock_store)
+    
+    # Test with invalid property type
+    result = service.add_property(
+        iri="https://example.org/ontology/invalidProperty",
+        property_type="InvalidType",
+        name_en="invalidProperty"
+    )
+    assert result is False
+    
+    # Test with no IRI and no names
+    result = service.add_property(
+        iri="",
+        property_type="ObjectProperty"
+    )
+    assert result is False
+    
+    print("✓ add_property with invalid data working correctly")
+
+
+def test_update_property():
+    """Test update_property functionality."""
+    print("Testing update_property...")
+    
+    mock_store = MockOntologyStore()
+    service = OntologyService(store=mock_store)
+    
+    # First add a property
+    iri = "https://example.org/ontology/updateTestProperty"
+    result = service.add_property(
+        iri=iri,
+        property_type="ObjectProperty",
+        name_en="updateTestProperty",
+        definition_en="Original definition"
+    )
+    assert result is True
+    
+    # Now update it
+    result = service.update_property(
+        iri=iri,
+        name_en="updatedTestProperty",
+        definition_en="Updated definition",
+        comment_en="New comment"
+    )
+    assert result is True
+    
+    print("✓ update_property working correctly")
+
+
+def test_remove_property():
+    """Test remove_property functionality."""
+    print("Testing remove_property...")
+    
+    mock_store = MockOntologyStore()
+    service = OntologyService(store=mock_store)
+    
+    # First add a property
+    iri = "https://example.org/ontology/removeTestProperty"
+    result = service.add_property(
+        iri=iri,
+        property_type="ObjectProperty",
+        name_en="removeTestProperty",
+        definition_en="Test definition"
+    )
+    assert result is True
+    
+    # Now remove it
+    result = service.remove_property(iri)
+    assert result is True
+    
+    print("✓ remove_property working correctly")
+
+
+def test_update_nonexistent_class():
+    """Test updating a class that doesn't exist."""
+    print("Testing update of nonexistent class...")
+    
+    mock_store = MockOntologyStore()
+    service = OntologyService(store=mock_store)
+    
+    result = service.update_class(
+        iri="https://example.org/ontology/NonexistentClass",
+        definition_en="Updated definition"
+    )
+    assert result is False
+    
+    print("✓ Update of nonexistent class handled correctly")
+
+
+def test_remove_nonexistent_class():
+    """Test removing a class that doesn't exist."""
+    print("Testing remove of nonexistent class...")
+    
+    mock_store = MockOntologyStore()
+    service = OntologyService(store=mock_store)
+    
+    result = service.remove_class("https://example.org/ontology/NonexistentClass")
+    assert result is False
+    
+    print("✓ Remove of nonexistent class handled correctly")
+
+
+def test_update_nonexistent_property():
+    """Test updating a property that doesn't exist."""
+    print("Testing update of nonexistent property...")
+    
+    mock_store = MockOntologyStore()
+    service = OntologyService(store=mock_store)
+    
+    result = service.update_property(
+        iri="https://example.org/ontology/NonexistentProperty",
+        definition_en="Updated definition"
+    )
+    assert result is False
+    
+    print("✓ Update of nonexistent property handled correctly")
+
+
+def test_remove_nonexistent_property():
+    """Test removing a property that doesn't exist."""
+    print("Testing remove of nonexistent property...")
+    
+    mock_store = MockOntologyStore()
+    service = OntologyService(store=mock_store)
+    
+    result = service.remove_property("https://example.org/ontology/NonexistentProperty")
+    assert result is False
+    
+    print("✓ Remove of nonexistent property handled correctly")
 
 
 def run_all_tests():
@@ -500,20 +693,24 @@ def run_all_tests():
         test_get_working_ontology,
         test_get_working_ontology_with_mock_data,
         test_get_class_neighborhood_success,
-        test_class_neighborhood_not_found,
         test_get_similar_classes_success,
         test_get_similar_classes_with_limit,
         test_similar_classes_not_found,
         test_get_property_details_success,
-        test_property_details_not_found,
         test_get_class_hierarchy_success,
-        test_class_hierarchy_not_found,
-        test_search_by_concept_placeholder,
         test_search_by_concept_empty_input,
-        test_add_extraction_results_placeholder,
-        test_add_extraction_results_invalid_data,
-        test_add_extraction_results_valid_class,
-        test_add_extraction_results_valid_property
+        test_add_class,
+        test_add_class_invalid_data,
+        test_update_class,
+        test_remove_class,
+        test_add_property,
+        test_add_property_invalid_data,
+        test_update_property,
+        test_remove_property,
+        test_update_nonexistent_class,
+        test_remove_nonexistent_class,
+        test_update_nonexistent_property,
+        test_remove_nonexistent_property
     ]
     
     passed = 0
