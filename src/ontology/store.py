@@ -91,6 +91,29 @@ class OntologyStore:
             "stats": self._get_ontology_stats()
         }
     
+    def export_whole_ontology_to_turtle(self) -> str:
+        """Export the working ontology graph to Turtle representation.
+        
+        Uses rdflib's built-in serialization to convert the working graph
+        to Turtle (TTL) format.
+        
+        Returns:
+            String containing the Turtle representation of the ontology
+        """
+        try:
+            # Serialize the working graph to Turtle format
+            turtle_content = self.working_graph.serialize(format='turtle')
+            
+            # Handle different return types from rdflib versions
+            if isinstance(turtle_content, bytes):
+                return turtle_content.decode('utf-8')
+            else:
+                return str(turtle_content)
+                
+        except Exception as e:
+            print(f"Error exporting ontology to Turtle: {e}")
+            return ""
+    
     def get_class(self, class_iri: URIRef) -> Optional[OntologyClass]:
         """Retrieve basic class information."""
         # Check if class exists in working graph

@@ -404,7 +404,7 @@ def test_add_extraction_results_valid_class():
             "name_en": "Test Vehicle",
             "definition_cs": "Vozidlo pro testování",
             "definition_en": "Vehicle for testing",
-            "source_element": "test_element"
+            "source_elements": ["test_element"]
         }
     ]
     
@@ -431,7 +431,7 @@ def test_add_class():
         comment_en="Test comment",
         comment_cs="Test komentar",
         parent_class_iri="https://example.org/ParentClass",
-        source_element="test_element"
+        source_elements=["test_element"]
     )
     assert result is True
     
@@ -528,7 +528,7 @@ def test_add_property():
         definition_cs="Test definice vlastnosti",
         domain_iri="https://example.org/TestClass",
         range_iri="https://example.org/TestRange",
-        source_element="test_element"
+        source_elements=["test_element"]
     )
     assert result is True
     
@@ -682,6 +682,42 @@ def test_remove_nonexistent_property():
     print("✓ Remove of nonexistent property handled correctly")
 
 
+def test_class_exists():
+    """Test checking if a class exists in the ontology."""
+    print("Testing class existence check...")
+    
+    mock_store = MockOntologyStore()
+    service = OntologyService(store=mock_store)
+    
+    # Test with existing class
+    result = service.class_exists("https://example.org/Vehicle")
+    assert result is True
+    
+    # Test with non-existing class
+    result = service.class_exists("https://example.org/NonexistentClass")
+    assert result is False
+    
+    print("✓ Class existence check working correctly")
+
+
+def test_property_exists():
+    """Test checking if a property exists in the ontology."""
+    print("Testing property existence check...")
+    
+    mock_store = MockOntologyStore()
+    service = OntologyService(store=mock_store)
+    
+    # Test with existing property
+    result = service.property_exists("https://example.org/hasOwner")
+    assert result is True
+    
+    # Test with non-existing property
+    result = service.property_exists("https://example.org/nonexistentProperty")
+    assert result is False
+    
+    print("✓ Property existence check working correctly")
+
+
 def run_all_tests():
     """Run all test functions."""
     print("=" * 50)
@@ -710,7 +746,9 @@ def run_all_tests():
         test_update_nonexistent_class,
         test_remove_nonexistent_class,
         test_update_nonexistent_property,
-        test_remove_nonexistent_property
+        test_remove_nonexistent_property,
+        test_class_exists,
+        test_property_exists
     ]
     
     passed = 0

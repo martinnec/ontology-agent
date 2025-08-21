@@ -35,6 +35,15 @@ class OntologyService:
         """
         return self.store.get_whole_ontology()
     
+    def export_whole_ontology_to_turtle(self) -> str:
+        """
+        Export the entire ontology in Turtle format.
+        
+        Returns:
+            Turtle string representation of the whole ontology.
+        """
+        return self.store.export_whole_ontology_to_turtle()
+    
     def get_class_neighborhood(self, class_iri: str) -> ClassNeighborhood:
         """Get class with its immediate neighborhood of connected classes.
         
@@ -350,7 +359,7 @@ class OntologyService:
                   comment_cs: str = "",
                   comment_en: str = "",
                   parent_class_iri: str = "",
-                  source_element: str = "agent-extracted") -> bool:
+                  source_elements: List[str] = None) -> bool:
         """Add a new class to the ontology.
         
         Args:
@@ -362,7 +371,7 @@ class OntologyService:
             comment_cs: Czech comment about the class
             comment_en: English comment about the class
             parent_class_iri: IRI of parent class (optional)
-            source_element: Source reference for the class
+            source_elements: List of source references for the class
             
         Returns:
             True if successfully added, False otherwise
@@ -410,6 +419,10 @@ class OntologyService:
             if parent_class_iri:
                 parent_classes.append(URIRef(parent_class_iri))
             
+            # Handle source elements
+            if source_elements is None:
+                source_elements = ["agent-extracted"]
+            
             # Create ontology class
             ontology_class = OntologyClass(
                 iri=class_iri,
@@ -421,7 +434,7 @@ class OntologyService:
                 datatype_properties=[],
                 object_properties_out=[],
                 object_properties_in=[],
-                source_elements=[source_element]
+                source_elements=source_elements
             )
             
             return self.store.add_class(ontology_class)
@@ -439,7 +452,7 @@ class OntologyService:
                      comment_cs: str = None,
                      comment_en: str = None,
                      parent_class_iri: str = None,
-                     source_element: str = None) -> bool:
+                     source_elements: List[str] = None) -> bool:
         """Update an existing class in the ontology.
         
         Args:
@@ -451,7 +464,7 @@ class OntologyService:
             comment_cs: Czech comment about the class (None = don't change)
             comment_en: English comment about the class (None = don't change)
             parent_class_iri: IRI of parent class (None = don't change, "" = remove parent)
-            source_element: Source reference for the class (None = don't change)
+            source_elements: List of source references for the class (None = don't change)
             
         Returns:
             True if successfully updated, False otherwise
@@ -512,10 +525,13 @@ class OntologyService:
                     parent_classes.append(URIRef(parent_class_iri))
             
             # Update source elements
-            source_elements = existing_class.source_elements.copy()
-            if source_element is not None:
-                if source_element not in source_elements:
-                    source_elements.append(source_element)
+            updated_source_elements = existing_class.source_elements.copy()
+            if source_elements is not None:
+                # Replace the source elements with the new list
+                # Merge with existing to avoid duplicates
+                for element in source_elements:
+                    if element not in updated_source_elements:
+                        updated_source_elements.append(element)
             
             # Create updated ontology class
             updated_class = OntologyClass(
@@ -528,7 +544,7 @@ class OntologyService:
                 datatype_properties=existing_class.datatype_properties,
                 object_properties_out=existing_class.object_properties_out,
                 object_properties_in=existing_class.object_properties_in,
-                source_elements=source_elements
+                source_elements=updated_source_elements
             )
             
             return self.store.update_class(updated_class)
@@ -571,7 +587,7 @@ class OntologyService:
                      comment_en: str = "",
                      domain_iri: str = "",
                      range_iri: str = "",
-                     source_element: str = "agent-extracted") -> bool:
+                     source_elements: List[str] = None) -> bool:
         """Add a new property to the ontology.
         
         Args:
@@ -585,7 +601,7 @@ class OntologyService:
             comment_en: English comment about the property
             domain: IRI of domain class
             range_iri: IRI of range class or datatype
-            source_element: Source reference for the property
+            source_elements: List of source references for the property
             
         Returns:
             True if successfully added, False otherwise
@@ -642,6 +658,10 @@ class OntologyService:
             
             range_uri = URIRef(range_iri) if range_iri else URIRef("")
             
+            # Handle source elements
+            if source_elements is None:
+                source_elements = ["agent-extracted"]
+            
             # Create ontology property
             ontology_property = OntologyProperty(
                 iri=prop_iri,
@@ -651,7 +671,7 @@ class OntologyService:
                 property_type=property_type,
                 domain=domain_uri,
                 range=range_uri,
-                source_elements=[source_element]
+                source_elements=source_elements
             )
             
             return self.store.add_property(ontology_property)
@@ -671,7 +691,7 @@ class OntologyService:
                         comment_en: str = None,
                         domain_iri: str = None,
                         range_iri: str = None,
-                        source_element: str = None) -> bool:
+                        source_elements: List[str] = None) -> bool:
         """Update an existing property in the ontology.
         
         Args:
@@ -685,7 +705,7 @@ class OntologyService:
             comment_en: English comment about the property (None = don't change)
             domain_iri: IRI of domain class (None = don't change, "" = remove domain)
             range_iri: IRI of range class or datatype (None = don't change, "" = remove range)
-            source_element: Source reference for the property (None = don't change)
+            source_elements: List of source references for the property (None = don't change)
             
         Returns:
             True if successfully updated, False otherwise
@@ -761,10 +781,13 @@ class OntologyService:
                     updated_range = URIRef("")
             
             # Update source elements
-            source_elements = existing_property.source_elements.copy()
-            if source_element is not None:
-                if source_element not in source_elements:
-                    source_elements.append(source_element)
+            updated_source_elements = existing_property.source_elements.copy()
+            if source_elements is not None:
+                # Replace the source elements with the new list
+                # Merge with existing to avoid duplicates
+                for element in source_elements:
+                    if element not in updated_source_elements:
+                        updated_source_elements.append(element)
             
             # Create updated ontology property
             updated_property = OntologyProperty(
@@ -775,7 +798,7 @@ class OntologyService:
                 property_type=updated_property_type,
                 domain=updated_domain,
                 range=updated_range,
-                source_elements=source_elements
+                source_elements=updated_source_elements
             )
             
             return self.store.update_property(updated_property)
@@ -880,3 +903,35 @@ class OntologyService:
         except Exception as e:
             print(f"Error searching for property by label '{label}': {e}")
             return None
+
+    def class_exists(self, class_iri: str) -> bool:
+        """Check if a class exists in the ontology.
+        
+        Args:
+            class_iri: IRI of the class to check
+            
+        Returns:
+            True if the class exists, False otherwise
+        """
+        try:
+            class_uri = URIRef(class_iri)
+            return self.store.get_class(class_uri) is not None
+        except Exception as e:
+            print(f"Error checking if class exists '{class_iri}': {e}")
+            return False
+
+    def property_exists(self, property_iri: str) -> bool:
+        """Check if a property exists in the ontology.
+        
+        Args:
+            property_iri: IRI of the property to check
+            
+        Returns:
+            True if the property exists, False otherwise
+        """
+        try:
+            property_uri = URIRef(property_iri)
+            return self.store.get_property_details(property_uri) is not None
+        except Exception as e:
+            print(f"Error checking if property exists '{property_iri}': {e}")
+            return False
