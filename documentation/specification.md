@@ -845,6 +845,10 @@ ontology_service.get_class_hierarchy(class_iri: str) -> Dict[str, List[URIRef]]
 # Property Operations  
 ontology_service.get_property_details(property_iri: str) -> OntologyProperty
 
+# Existence Checks
+ontology_service.class_exists(class_iri: str) -> bool
+ontology_service.property_exists(property_iri: str) -> bool
+
 # Semantic Concept Search
 ontology_service.search_by_concept(concept_text: str) -> List[Dict[str, Any]]
 # Multilingual similarity search across classes and properties
