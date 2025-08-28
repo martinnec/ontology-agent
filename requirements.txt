@@ -4,7 +4,10 @@ python-dotenv>=1.0.0
 # Indexing and retrieval dependencies
 numpy>=1.21.0
 scikit-learn>=1.0.0
-sentence-transformers>=2.2.0
+# Pin to compatible versions to avoid encoder_attention_mask deprecation warning
+sentence-transformers>=2.2.0,<5.0.0  # Use stable version compatible with transformers
+transformers>=4.21.0,<4.54.0         # Use version before encoder_attention_mask deprecation
+torch>=1.12.0,<2.7.0                 # Use compatible torch version
 faiss-cpu>=1.7.0  # Use faiss-gpu if GPU available
 rank-bm25>=0.2.2
 
